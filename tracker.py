@@ -56,8 +56,8 @@ APPS = {  # key -> (App Store id, lab, name)
 PRODUCTS = {  # key -> (name, lab, Hacker News phrase, YouTube query, words the video title must contain)
     "grokbot": ("Grok Bot", "xai", ["Grok Bot", "GrokBot"], ["Grok Bot", "GrokBot"], ("grok bot", "grokbot")),
     "claudecode": ("Claude Code", "anthropic", ["Claude Code"], ["Claude Code"], ("claude code",)),
-    "codex": ("OpenAI Codex", "openai", ["OpenAI Codex", "Codex CLI"], ["OpenAI Codex", "Codex CLI"], ("codex",)),
-    "chatgpt": ("ChatGPT", "openai", ["ChatGPT"], ["ChatGPT"], ("chatgpt",)),
+    # OpenAI ships ChatGPT and Codex as one product family, so they are one row here
+    "codex": ("ChatGPT + Codex", "openai", ["ChatGPT", "OpenAI Codex", "Codex CLI"], ["ChatGPT", "OpenAI Codex", "Codex CLI"], ("chatgpt", "codex")),
     "metaai": ("Meta AI app", "meta", ["Meta AI"], ["Meta AI"], ("meta ai",)),
     "muse": ("Meta Muse models", "meta", ["Muse Spark", "Muse Wonder"], None, ()),
 }
