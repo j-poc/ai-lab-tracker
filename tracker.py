@@ -71,6 +71,8 @@ ALIASES = {
              "yt": ["Meta AI", "Muse Spark", "Llama 4", "Meta Superintelligence"],
              "wiki": ["Meta_AI", "Llama_(language_model)", "Meta_Superintelligence_Labs", "Muse_Spark"]},
 }
+# Reddit communities where each lab's users gather. Activity is counted as posts per week (Arctic Shift archive).
+REDDIT = {"anthropic": ["ClaudeAI", "ClaudeCode"], "openai": ["OpenAI", "ChatGPT"], "xai": ["grok", "GrokBot"], "meta": ["MetaAI"]}
 PM_NAMES = {"anthropic": "Anthropic", "openai": "OpenAI", "xai": "SpaceXAI", "meta": "Meta"}
 
 
@@ -298,6 +300,31 @@ def hn_union(phrases, a, b):
     return total
 
 
+def reddit_posts(sub, first, last):
+    """Posts in a subreddit from `first` to `last` (dates, both included), from the free Arctic Shift archive.
+    Big subreddits time out on long windows, so ask two days at a time."""
+    total, day = 0, first
+    while day <= last:
+        stop = min(day + timedelta(days=2), last + timedelta(days=1))
+        u = ("https://arctic-shift.photon-reddit.com/api/posts/search/aggregate?aggregate=created_utc&frequency=day"
+             f"&subreddit={sub}&after={day.isoformat()}&before={stop.isoformat()}")
+        for attempt in range(5):
+            try:
+                d = http_json(u)
+            except RuntimeError as ex:
+                if "Timeout" not in str(ex):  # the archive reports a slow query as a Timeout error (HTTP 422 or 200)
+                    raise
+                d = {"data": None}
+            if d.get("data") is not None:
+                total += sum(int(x["count"]) for x in d["data"])
+                break
+            time.sleep(8)
+        else:
+            raise RuntimeError(f"reddit {sub} timed out")
+        day = stop
+    return total
+
+
 def wiki_views(title, a, b):
     u = ("https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/"
          f"{urllib.parse.quote(title, safe='')}/daily/{a:%Y%m%d}/{b:%Y%m%d}")
@@ -327,7 +354,7 @@ def collect_attention(con):
     pri_a, pri_b = cur_a - timedelta(days=7), cur_a
     out = {"as_of": end.isoformat(), "window": f"{end - timedelta(days=6)} to {end}", "products": {}, "labs": {}}
     key = os.environ.get("YOUTUBE_API_KEY")
-    parts = set(os.environ.get("ATT_PARTS", "hn,yt,wiki,news").split(","))  # re-collect only some parts
+    parts = set(os.environ.get("ATT_PARTS", "hn,yt,wiki,news,reddit").split(","))  # re-collect only some parts
     prev = kv_get(con, "attention") or {}
     if not key:
         log("NOTE: YOUTUBE_API_KEY not set, skipping YouTube")
@@ -359,6 +386,17 @@ def collect_attention(con):
         part(row, old, "hn", "hn", lambda: [hn_union(al["hn"], cur_a, cur_b), hn_union(al["hn"], pri_a, pri_b)])
         if key:
             part(row, old, "yt", "yt", lambda: yt_pair(al["yt"], [m.lower() for m in al["yt"]]))
+        def reddit():
+            subs = {r: [reddit_posts(r, end - timedelta(days=6), end), reddit_posts(r, end - timedelta(days=13), end - timedelta(days=7))] for r in REDDIT[lab]}
+            row["reddit_subs"] = subs
+            return [sum(v[0] for v in subs.values()), sum(v[1] for v in subs.values())]
+        if "reddit" in parts:
+            try:
+                row["reddit"] = reddit()
+            except Exception as ex:
+                log(f"reddit {lab} FAILED: {str(ex)[:100]}")
+        elif "reddit" in old:
+            row["reddit"], row["reddit_subs"] = old["reddit"], old.get("reddit_subs")
         if "news" in parts:
             try:
                 row["news"] = list(gdelt_share(al["news"], end))
