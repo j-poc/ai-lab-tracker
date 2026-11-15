@@ -307,7 +307,7 @@ def wiki_views(title, a, b):
 def gdelt_share(query, end):
     """Mean daily share of monitored news volume. Returns (last 7 days, prior 7 days)."""
     u = "https://api.gdeltproject.org/api/v2/doc/doc?mode=timelinevol&format=json&timespan=16d&query=" + urllib.parse.quote(query)
-    pts = http_json(u, retries=6, wait429=75)["timeline"][0]["data"]
+    pts = http_json(u, retries=3, wait429=30)["timeline"][0]["data"]
     by_day = {}
     for p in pts:
         by_day.setdefault(p["date"][:8], []).append(p["value"])
