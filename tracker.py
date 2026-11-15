@@ -315,26 +315,75 @@ def iso(d):
     return d.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def yt_union(queries, musts, a, b, key, _unused=None):
-    """Most-viewed videos published in the window that have any name in the title.
-    One OR query per length class (medium = 4-20 min, long = 20+ min), so Shorts are never counted.
-    Returns (videos, total views, top video). Costs 2 searches (200 quota units) per call."""
+def yt_unit(queries, musts, win_end, length, key):
+    """One YouTube search for one 7-day window (ending on win_end, UTC) and one length class.
+    Returns the videos whose title has a name: [[id, views, title, channel], ...]. Costs 1 search + 1 cheap lookup.
+    medium = 4-20 min, long = 20+ min, so Shorts are never counted."""
+    a = datetime.combine(win_end - timedelta(days=6), datetime.min.time(), timezone.utc)
+    b = datetime.combine(win_end + timedelta(days=1), datetime.min.time(), timezone.utc)
     q = "|".join(chr(34) + x + chr(34) for x in queries)
-    seen = {}
-    for length in ("medium", "long"):
-        s = http_json("https://www.googleapis.com/youtube/v3/search?part=id&type=video&maxResults=50&order=viewCount"
-                      f"&videoDuration={length}&q={urllib.parse.quote(q)}&publishedAfter={iso(a)}&publishedBefore={iso(b)}&key={key}")
-        ids = [x["id"]["videoId"] for x in s.get("items", []) if x["id"]["videoId"] not in seen]
-        if not ids:
+    s = http_json("https://www.googleapis.com/youtube/v3/search?part=id&type=video&maxResults=50&order=viewCount"
+                  f"&videoDuration={length}&q={urllib.parse.quote(q)}&publishedAfter={iso(a)}&publishedBefore={iso(b)}&key={key}")
+    ids = [x["id"]["videoId"] for x in s.get("items", [])]
+    if not ids:
+        return []
+    v = http_json(f"https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id={','.join(ids)}&key={key}")["items"]
+    return [[x["id"], int(x["statistics"].get("viewCount", 0)), x["snippet"]["title"], x["snippet"]["channelTitle"]]
+            for x in v if any(m in x["snippet"]["title"].lower() for m in musts)]
+
+
+def yt_collect(con, key, end, targets):
+    """Resumable YouTube collection. The Google project has a small daily search cap, so each search result is
+    saved on its own. A run stops at the first quota error and the next run continues. Order: this week for every
+    target first, then the week before. A week that was collected earlier is reused, never searched twice."""
+    cache = kv_get(con, "yt_units", {}) or {}
+    todo = [(tid, w) for w in (end, end - timedelta(days=7)) for tid in targets]
+    done = tried = 0
+    for tid, w in todo:
+        queries, musts = targets[tid]
+        for length in ("medium", "long"):
+            k = f"{tid}|{w.isoformat()}|{length}"
+            if k in cache:
+                continue
+            tried += 1
+            try:
+                cache[k] = yt_unit(queries, musts, w, length, key)
+                kv_put(con, "yt_units", cache)  # save after every search, so a stop loses nothing
+                con.commit()
+                done += 1
+            except RuntimeError as ex:
+                if "quota exhausted" in str(ex):
+                    log(f"yt: quota used up after {done} new searches; the next run continues")
+                    return cache
+                log(f"yt {k} FAILED: {str(ex)[:100]}")
+    for k in [k for k in cache if datetime.fromisoformat(k.split("|")[1]).date() < end - timedelta(days=28)]:
+        del cache[k]  # keep four weeks of saved results
+    kv_put(con, "yt_units", cache)
+    log(f"yt: {done} new searches, {len(todo) * 2 - tried} already saved")
+    return cache
+
+
+def yt_row(cache, tid, end):
+    """Build the dashboard row for one target from saved searches. Weeks are fixed (Monday to Sunday), so last week is reused."""
+    def week(w):
+        ks = [f"{tid}|{w.isoformat()}|{ln}" for ln in ("medium", "long")]
+        if not all(k in cache for k in ks):
+            return None
+        seen = {}
+        for k in ks:
+            for vid, views, title, ch in cache[k]:
+                seen[vid] = (views, title, ch)
+        return sorted(seen.values(), reverse=True)
+    for i in (0, 7):  # this week, or last week when this week is not finished yet
+        w = end - timedelta(days=i)
+        cur = week(w)
+        if cur is None:
             continue
-        v = http_json(f"https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id={','.join(ids)}&key={key}")["items"]
-        for x in v:
-            t = x["snippet"]["title"]
-            if any(m in t.lower() for m in musts):
-                seen[x["id"]] = (int(x["statistics"].get("viewCount", 0)), t, x["snippet"]["channelTitle"])
-    rows = sorted(seen.values(), reverse=True)
-    top = {"views": rows[0][0], "title": rows[0][1], "channel": rows[0][2]} if rows else None
-    return len(rows), sum(r[0] for r in rows), top
+        pri = week(w - timedelta(days=7))
+        top = {"views": cur[0][0], "title": cur[0][1], "channel": cur[0][2]} if cur else None
+        return {"videos": [len(cur), len(pri) if pri is not None else None], "views": [sum(r[0] for r in cur), sum(r[0] for r in pri) if pri is not None else None],
+                "top": top, "asof": w.isoformat()}
+    return None
 
 
 def hn_union(phrases, a, b):
@@ -411,16 +460,20 @@ def collect_attention(con):
     prev = kv_get(con, "attention") or {}
     if not key:
         log("NOTE: YOUTUBE_API_KEY not set, skipping YouTube")
-    def yt_pair(queries, musts):
-        n1, v1, top1 = yt_union(queries, musts, cur_a, cur_b, key)
-        n0, v0, _ = yt_union(queries, musts, pri_a, pri_b, key)
-        return {"videos": [n1, n0], "views": [v1, v0], "top": top1}
+    yt_end = end - timedelta(days=(end.weekday() - 6) % 7)  # newest finished Sunday: YouTube uses fixed weeks so searches are reused
+    out["yt_window"] = f"{yt_end - timedelta(days=6)} to {yt_end}"
+    yt_cache = {}
+    if key and "yt" in parts:
+        targets = {f"prod:{pk}": (pv[3], pv[4]) for pk, pv in PRODUCTS.items() if pv[3]}
+        targets.update({f"lab:{lab}": (al["yt"], [m.lower() for m in al["yt"]]) for lab, al in ALIASES.items()})
+        yt_cache = yt_collect(con, key, yt_end, targets)
 
     def part(row, old, part_name, field, fn):
         """Collect one field, or keep the stored value when this part is not being re-collected."""
         if part_name in parts:
             try:
-                row[field] = fn()
+                val = fn()
+                row[field] = old[field] if val is None and field in old else val  # nothing new: keep the last value
             except Exception as ex:
                 log(f"{part_name} {field} FAILED: {str(ex)[:100]}")
         elif field in old:
@@ -430,7 +483,7 @@ def collect_attention(con):
         row, old = {"name": name, "lab": lab}, (prev.get("products") or {}).get(pk, {})
         part(row, old, "hn", "hn", lambda: [hn_union(hn_q, cur_a, cur_b), hn_union(hn_q, pri_a, pri_b)])
         if key and yt_q:
-            part(row, old, "yt", "yt", lambda: yt_pair(yt_q, must))
+            part(row, old, "yt", "yt", lambda: yt_row(yt_cache, f"prod:{pk}", yt_end))
         out["products"][pk] = row
     for lab, al in ALIASES.items():
         row, old = {}, (prev.get("labs") or {}).get(lab, {})
@@ -438,7 +491,7 @@ def collect_attention(con):
                                                  sum(wiki_views(t, end - timedelta(days=13), end - timedelta(days=7)) for t in al["wiki"])])
         part(row, old, "hn", "hn", lambda: [hn_union(al["hn"], cur_a, cur_b), hn_union(al["hn"], pri_a, pri_b)])
         if key:
-            part(row, old, "yt", "yt", lambda: yt_pair(al["yt"], [m.lower() for m in al["yt"]]))
+            part(row, old, "yt", "yt", lambda: yt_row(yt_cache, f"lab:{lab}", yt_end))
         def reddit():
             subs = {r: [reddit_posts(r, end - timedelta(days=6), end), reddit_posts(r, end - timedelta(days=13), end - timedelta(days=7))] for r in REDDIT[lab]}
             row["reddit_subs"] = subs
