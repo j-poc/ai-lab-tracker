@@ -105,7 +105,7 @@ def http_json(url, headers=None, retries=4, wait429=65):
             time.sleep(wait429)
         except urllib.error.HTTPError as e:
             body = e.read().decode("utf-8", "replace")[:200]
-            if e.code == 403 and "quota" in body.lower():
+            if "googleapis.com" in url and e.code in (403, 429):  # waiting does not refill a daily quota
                 raise RuntimeError(f"quota exhausted: {body[:120]}")
             if e.code in (403, 429) and attempt < retries - 1:
                 log(f"  rate limited, wait {wait429}s")
