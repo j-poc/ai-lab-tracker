@@ -1,0 +1,236 @@
+<title>AI Lab Tracker</title>
+<meta charset="utf-8">
+<meta name="claude:viewport-fit-sides" content="cover">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#f6f6f4;--card:#fff;--ink:#1c1c1a;--mute:#6b6b66;--line:#e4e4df;--grey:#9a9a94;--up:#14935f;--down:#d14343;--warn-bg:#fbf3dc;--warn-ink:#5c4a10}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121211;--card:#1b1b19;--ink:#ecece8;--mute:#9a9a93;--line:#2c2c29;--grey:#6f6f69;--up:#3ec98a;--down:#f07a7a;--warn-bg:#2b2511;--warn-ink:#e9d594;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121211;--card:#1b1b19;--ink:#ecece8;--mute:#9a9a93;--line:#2c2c29;--grey:#6f6f69;--up:#3ec98a;--down:#f07a7a;--warn-bg:#2b2511;--warn-ink:#e9d594;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding-block:28px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:26px;margin:0 0 2px;letter-spacing:-.015em}
+h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:var(--mute);margin:34px 0 4px;font-weight:600}
+.sec-sub{margin:0 0 12px;color:var(--mute);font-size:13px;max-width:70ch}
+.sub{color:var(--mute);font-size:13px;margin-bottom:18px}
+.read{background:var(--warn-bg);color:var(--warn-ink);border-radius:10px;padding:12px 14px;font-size:13.5px;margin-bottom:16px}
+.read ul{margin:4px 0 0;padding-left:18px}
+.lead{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.lead>*,.grid>*{min-width:0}
+.lc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.lc .k{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--mute)}
+.lc .v{font-size:18px;font-weight:700;margin:2px 0;letter-spacing:-.01em}
+.lc .d{font-size:12px;color:var(--mute)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h3{font-size:14px;margin:0 0 2px}
+.card p{margin:0 0 10px;color:var(--mute);font-size:12.5px}
+.chart{position:relative;height:250px}
+.wide{grid-column:1/-1}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mute);font-weight:500;font-size:12px}
+td.l,th.l{text-align:left}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px}
+.up{color:var(--up)}.down{color:var(--down)}.mute{color:var(--mute)}
+.note{font-size:12.5px;color:var(--mute);margin-top:10px}
+a{color:inherit}
+@media (max-width:760px){.lead{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
+</style>
+<div class="wrap">
+  <h1>AI Lab Tracker</h1>
+  <div class="sub" id="sub"></div>
+  <div class="read"><strong>How to read this page</strong>
+    <ul>
+      <li>There is no single score. Each panel measures one thing, from one public source, with its date.</li>
+      <li>A lab can lead one panel and trail another. That split is the result.</li>
+      <li>X (Twitter) is not measured. Grok is used heavily there, so Grok's reach is likely understated.</li>
+    </ul>
+  </div>
+  <div class="lead" id="lead"></div>
+
+  <h2 class="sec">Money</h2>
+  <p class="sec-sub">What US businesses pay for. This is the strongest signal on the page, because it shows spending, not attention.</p>
+  <div class="grid">
+    <div class="card"><h3 id="r1t"></h3><p id="r1s"></p><div class="chart"><canvas id="ramp1"></canvas></div></div>
+    <div class="card"><h3 id="r2t"></h3><p id="r2s"></p><div class="chart"><canvas id="ramp2"></canvas></div></div>
+  </div>
+  <div class="note" id="rampnote" style="margin-top:-4px"></div>
+
+  <h2 class="sec">Developer usage</h2>
+  <p class="sec-sub">What developers build with. Downloads are a proxy: they count installs, not use.</p>
+  <div class="grid">
+    <div class="card"><h3>Agent pull requests per week</h3><p>Pull requests opened from the default branch prefix of each cloud coding agent: <code>claude/</code> and <code>codex/</code>. xAI and Meta have no verified prefix, so they are not shown.</p><div class="chart"><canvas id="prs"></canvas></div></div>
+    <div class="card"><h3>Growth: last 4 weeks vs the 4 weeks before</h3><p>Change in each signal. It ignores the total, so a young product is not penalized for its size.</p><div class="chart"><canvas id="growth"></canvas></div></div>
+    <div class="card wide"><h3>Latest week</h3><p id="devasof"></p><div class="scroll"><table id="devtbl"></table></div></div>
+  </div>
+
+  <h2 class="sec">Consumer apps</h2>
+  <p class="sec-sub">US iPhone only. Sorted by written reviews per day, which shows what is happening now. Total ratings favor old apps.</p>
+  <div class="grid"><div class="card wide"><div class="scroll"><table id="apps"></table></div>
+    <div class="note">Rank is on the US App Store top-free chart (top 200) and the Productivity chart. Reviews per day uses the newest 500 written reviews. The 7-day ratings gain needs a snapshot from a week ago.</div></div></div>
+
+  <h2 class="sec">Attention, last 7 days</h2>
+  <p class="sec-sub" id="attsub"></p>
+  <div class="grid">
+    <div class="card"><h3>YouTube views by lab, all names</h3><p id="ytlabs"></p><div class="chart"><canvas id="ytl"></canvas></div></div>
+    <div class="card"><h3>Hacker News mentions by lab, all names</h3><p id="hnlabs"></p><div class="chart"><canvas id="hnl"></canvas></div></div>
+    <div class="card"><h3>YouTube views by product</h3><p>Views of the 50 most-viewed videos published in the window with the product name in the title. Videos of 4 minutes or longer only, so Shorts and viral clips do not count. Solid = last 7 days. Faded = the week before.</p><div class="chart"><canvas id="yt"></canvas></div></div>
+    <div class="card"><h3>Hacker News mentions by product</h3><p>Stories and comments that contain the product name (Grok Bot also as GrokBot). Developer audience only. Solid = last 7 days. Faded = the week before.</p><div class="chart"><canvas id="hn"></canvas></div></div>
+    <div class="card"><h3>Wikipedia page views, all articles</h3><p id="wikis"></p><div class="chart"><canvas id="wiki"></canvas></div></div>
+    <div class="card"><h3>Share of world news volume, all names</h3><p id="newss"></p><div class="chart"><canvas id="news"></canvas></div></div>
+    <div class="card wide"><h3>Product detail</h3><div class="scroll"><table id="atttbl"></table></div></div>
+  </div>
+
+  <h2 class="sec">Market odds</h2>
+  <p class="sec-sub">What traders expect, from Polymarket. Real probabilities. Labs not tracked here appear in grey.</p>
+  <div class="grid">
+    <div class="card"><h3 id="pm1t"></h3><p id="pm1s"></p><div class="chart"><canvas id="pm1"></canvas></div></div>
+    <div class="card"><h3 id="pm2t"></h3><p id="pm2s"></p><div class="chart"><canvas id="pm2"></canvas></div></div>
+  </div>
+
+  <h2 class="sec">Sources and limits</h2>
+  <div class="grid"><div class="card wide"><div class="scroll"><table id="methods"></table></div>
+    <div class="note" id="notmeasured"></div></div></div>
+</div>
+<script>
+const D = __DATA__;
+const labs = Object.keys(D.companies);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+Chart.defaults.color = css('--mute');
+Chart.defaults.borderColor = css('--line');
+Chart.defaults.font.family = '-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif';
+const GREY = css('--grey');
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = n => n == null ? '–' : n >= 1e9 ? (n/1e9).toFixed(2)+'B' : n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e4 ? (n/1e3).toFixed(0)+'K' : n >= 1e3 ? (n/1e3).toFixed(1)+'K' : (Math.round(n*10)/10).toString();
+const pct = n => n == null ? '' : ' <span class="' + (n >= 0 ? 'up' : 'down') + '">' + (n > 0 ? '+' : '') + n.toFixed(0) + '%</span>';
+const chg = (a, b) => (b ? 100 * (a - b) / b : null);
+const dot = c => '<span class="dot" style="background:' + c + '"></span>';
+const alpha = (hex, a) => hex + Math.round(a * 255).toString(16).padStart(2, '0');
+const baseOpts = {maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, grace:'12%'}}};
+
+$('sub').textContent = 'Updated ' + D.updated + ' \u00b7 public sources only \u00b7 each panel shows its own date';
+
+// ---------- Money ----------
+const R = D.ramp;
+function rampChart(id, tId, sId, blk) {
+  if (!blk) return;
+  $(tId).textContent = blk.label;
+  $(sId).textContent = blk.period + ' vs ' + blk.prior_period + '. Source: Ramp AI Index.';
+  const names = labs.map(l => D.companies[l] + (blk.values[l] == null ? ' (not reported)' : '')).concat(Object.keys(blk.others || {}));
+  const now = labs.map(l => blk.values[l]).concat(Object.values(blk.others || {}));
+  const prior = labs.map(l => blk.prior[l]).concat(Object.keys(blk.others || {}).map(() => null));
+  const col = labs.map(l => D.colors[l]).concat(Object.keys(blk.others || {}).map(() => GREY));
+  new Chart(id, {type:'bar', data:{labels:names, datasets:[
+    {label: blk.prior_period, data: prior, backgroundColor: col.map(c => alpha(c, .35)), borderRadius:4},
+    {label: blk.period, data: now, backgroundColor: col, borderRadius:4}]},
+    options:{...baseOpts, plugins:{legend:{display:false}, tooltip:{callbacks:{label:t => t.dataset.label + ': ' + t.parsed.y + '%'}}}, scales:{y:{beginAtZero:true, grace:'12%', ticks:{callback:v => v + '%'}}}}});
+}
+if (R) {
+  rampChart('ramp1', 'r1t', 'r1s', R.adoption);
+  rampChart('ramp2', 'r2t', 'r2s', R.token_spend);
+  $('rampnote').innerHTML = 'Solid bar = latest period. Faded bar = the period before. Ramp counts only businesses that use Ramp, and its page says it likely understates adoption. Source: <a href="' + esc(R.source) + '">ramp.com/data/ai-index</a>, read ' + esc(R.retrieved) + '.';
+}
+
+// ---------- Developer usage ----------
+const dev = D.dev || {};
+if (dev.agent_prs) {
+  const p = dev.agent_prs;
+  new Chart('prs', {type:'line', data:{labels:p.dates, datasets:['anthropic','openai'].map(l => ({label:D.companies[l] + ' (' + (l === 'anthropic' ? 'claude/' : 'codex/') + ')', data:p.series[l], borderColor:D.colors[l], backgroundColor:D.colors[l], tension:.3, pointRadius:3}))},
+    options:{maintainAspectRatio:false, interaction:{mode:'index', intersect:false}, plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true, grace:'10%', ticks:{callback:v => fmt(v)}}}}});
+}
+const gm = [['pypi','SDK downloads, PyPI'], ['npm','SDK downloads, npm'], ['agent_prs','Agent pull requests']].filter(x => dev[x[0]] && dev[x[0]].growth);
+new Chart('growth', {type:'bar', data:{labels:gm.map(x => x[1]), datasets:labs.map(l => ({label:D.companies[l], data:gm.map(x => { const g = dev[x[0]].growth[l]; return g == null ? null : +g.toFixed(1); }), backgroundColor:D.colors[l], borderRadius:4}))},
+  options:{maintainAspectRatio:false, plugins:{legend:{position:'bottom'}, tooltip:{callbacks:{label:t => t.dataset.label + ': ' + (t.parsed.y > 0 ? '+' : '') + t.parsed.y + '%'}}}, scales:{y:{grace:'12%', ticks:{callback:v => v + '%'}}}}});
+const devRows = [['pypi','SDK downloads, PyPI (7 days)'], ['npm','SDK downloads, npm (7 days)'], ['agent_prs','Agent pull requests (7 days)']].filter(x => dev[x[0]]);
+$('devasof').textContent = devRows.length ? 'Week ending ' + dev[devRows[0][0]].as_of + '. Change is against the week before. xAI and Meta SDK numbers are undercounts, because many developers call them through the OpenAI SDK.' : '';
+$('devtbl').innerHTML = '<tr><th class="l">Signal</th>' + labs.map(l => '<th>' + D.companies[l] + '</th>').join('') + '</tr>' +
+  devRows.map(x => '<tr><td>' + x[1] + '</td>' + labs.map(l => { const v = dev[x[0]].latest[l]; return '<td>' + (v == null ? '<span class="mute">n/a</span>' : fmt(v) + pct(dev[x[0]].wow[l])) + '</td>'; }).join('') + '</tr>').join('');
+
+// ---------- Consumer apps ----------
+$('apps').innerHTML = '<tr><th class="l">App</th><th>Top-free rank</th><th>Productivity rank</th><th>Reviews per day</th><th>Recent avg stars</th><th>Ratings gained, 7 days</th><th>Total ratings</th></tr>' +
+  (D.apps || []).slice().sort((a, b) => (b.review_rate || 0) - (a.review_rate || 0)).map(a =>
+    '<tr><td>' + dot(D.colors[a.lab]) + esc(a.name) + '</td><td>' + (a.rank ? '#' + a.rank : 'outside top 200') + '</td><td>' + (a.prod_rank ? '#' + a.prod_rank : 'outside top 200') + '</td><td>' + fmt(a.review_rate) + '</td><td>' + (a.review_stars ? a.review_stars.toFixed(2) : '–') + '</td><td>' + (a.gained_7d == null ? '<span class="mute">collecting</span>' : '+' + fmt(a.gained_7d)) + '</td><td>' + fmt(a.ratings) + '</td></tr>').join('');
+
+// ---------- Attention ----------
+const A = D.attention;
+const prods = Object.keys(D.products);
+function pairChart(id, keys, names, colors, pairs, fmtLabel) {
+  new Chart(id, {type:'bar', data:{labels:names, datasets:[
+    {label:'Previous 7 days', data:pairs.map(p => p ? p[1] : null), backgroundColor:colors.map(c => alpha(c, .35)), borderRadius:4},
+    {label:'Last 7 days', data:pairs.map(p => p ? p[0] : null), backgroundColor:colors, borderRadius:4}]},
+    options:{maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:t => t.dataset.label + ': ' + (fmtLabel ? fmtLabel(t.parsed.y) : fmt(t.parsed.y))}}}, scales:{y:{beginAtZero:true, grace:'12%', ticks:{callback:v => fmtLabel ? fmtLabel(v) : fmt(v)}}}}});
+}
+const NAMES = {
+  yt: 'Anthropic, Claude Code, Claude Opus | OpenAI, ChatGPT, OpenAI Codex | Grok, SpaceXAI, Grok Bot | Meta AI, Muse Spark, Llama 4, Meta Superintelligence',
+  hn: 'Anthropic, Claude Code, Claude Opus, Claude Sonnet | OpenAI, ChatGPT, OpenAI Codex, Sam Altman | Grok, SpaceXAI, SpaceX AI, xAI | Meta AI, Muse Spark, Muse Wonder, Meta Superintelligence, Meta Llama',
+  news: 'Anthropic, Claude Code, Claude Opus/Sonnet | OpenAI, ChatGPT, OpenAI Codex, Sam Altman | Grok, SpaceXAI, SpaceX AI, Grok Bot | Meta AI, Muse Spark, Muse Wonder, Meta Superintelligence, Meta Llama',
+  wiki: 'Anthropic, Claude (AI) | OpenAI, ChatGPT, OpenAI Codex | SpaceXAI, XAI (company), Grok (chatbot) | Meta AI, Llama, Meta Superintelligence Labs, Muse Spark'
+};
+if (A) {
+  $('attsub').textContent = 'Window: ' + A.window + ' (UTC). Compared with the 7 days before. Attention is the weakest signal here: it shows interest, not use or spending.';
+  const P = A.products;
+  const pn = prods.map(k => D.products[k].name), pc = prods.map(k => D.colors[D.products[k].lab]);
+  pairChart('yt', prods, pn, pc, prods.map(k => P[k] && P[k].yt ? P[k].yt.views : null));
+  pairChart('hn', prods, pn, pc, prods.map(k => P[k] && P[k].hn ? P[k].hn : null));
+  const L = A.labs;
+  const lc = labs.map(l => D.colors[l]), ln = labs.map(l => D.companies[l]);
+  pairChart('wiki', labs, ln, lc, labs.map(l => L[l] && L[l].wiki ? L[l].wiki : null));
+  pairChart('news', labs, ln, lc, labs.map(l => L[l] && L[l].news ? L[l].news : null), v => (+v).toFixed(2) + '%');
+  pairChart('ytl', labs, ln, lc, labs.map(l => L[l] && L[l].yt ? L[l].yt.views : null));
+  pairChart('hnl', labs, ln, lc, labs.map(l => L[l] && L[l].hn ? L[l].hn : null));
+  $('ytlabs').textContent = 'Videos published in the window whose title has any of: ' + NAMES.yt + '. Top 50 per name, duplicates counted once. Videos of 4 minutes or longer only. Solid = last 7 days.';
+  if (!labs.some(l => L[l] && L[l].yt)) $('ytlabs').textContent = 'No YouTube data in this run: the free daily YouTube quota was used up. It resets at 08:00 UTC.';
+  $('hnlabs').textContent = 'Stories and comments with any of: ' + NAMES.hn + '. Each item counted once. Solid = last 7 days.';
+  const stale = labs.filter(l => L[l] && L[l].news_asof).map(l => D.companies[l] + ' (as of ' + L[l].news_asof + ')');
+  $('newss').textContent = 'GDELT, all monitored news. Percent of articles that mention any of: ' + NAMES.news + '. Solid = last 7 days.' + (stale.length ? ' Old value kept because GDELT limited requests: ' + stale.join(', ') + '.' : '');
+  $('wikis').textContent = 'English Wikipedia daily views, summed over: ' + NAMES.wiki + '. Grok Bot has no article of its own. Solid = last 7 days.';
+  $('atttbl').innerHTML = '<tr><th class="l">Product</th><th>Hacker News mentions</th><th>YouTube videos found</th><th>YouTube views (top 50)</th><th class="l">Most-viewed video this week</th></tr>' +
+    prods.map(k => { const r = P[k] || {}; const y = r.yt, h = r.hn;
+      return '<tr><td>' + dot(D.colors[D.products[k].lab]) + esc(D.products[k].name) + '</td><td>' + (h ? fmt(h[0]) + pct(chg(h[0], h[1])) : '–') + '</td><td>' + (y ? y.videos[0] : '–') + '</td><td>' + (y ? fmt(y.views[0]) + pct(chg(y.views[0], y.views[1])) : '–') + '</td><td class="l">' + (y && y.top ? esc(y.top.title.slice(0, 70)) + ' <span class="mute">(' + esc(y.top.channel) + ', ' + fmt(y.top.views) + ')</span>' : '–') + '</td></tr>'; }).join('');
+}
+
+// ---------- Market odds ----------
+const rev = {}; Object.keys(D.pm_names).forEach(l => rev[D.pm_names[l]] = l);
+function pmChart(i) {
+  const ev = D.polymarket && D.polymarket.events[i];
+  if (!ev) { $('pm' + (i + 1) + 't').textContent = 'Not available'; return; }
+  $('pm' + (i + 1) + 't').textContent = ev.title;
+  $('pm' + (i + 1) + 's').textContent = 'Polymarket chance of winning. Resolves ' + ev.end + '. Read ' + D.polymarket.as_of + '.';
+  let names = Object.keys(ev.odds).sort((a, b) => ev.odds[b] - ev.odds[a]);
+  const keep = names.slice(0, 5); Object.keys(rev).forEach(n => { if (ev.odds[n] != null && !keep.includes(n)) keep.push(n); });
+  names = keep.sort((a, b) => ev.odds[b] - ev.odds[a]);
+  new Chart('pm' + (i + 1), {type:'bar', data:{labels:names, datasets:[{data:names.map(n => +ev.odds[n].toFixed(1)), backgroundColor:names.map(n => rev[n] ? D.colors[rev[n]] : GREY), borderRadius:4}]},
+    options:{...baseOpts, plugins:{legend:{display:false}, tooltip:{callbacks:{label:t => t.parsed.y + '%'}}}, scales:{y:{beginAtZero:true, grace:'12%', ticks:{callback:v => v + '%'}}}}});
+}
+pmChart(0); pmChart(1);
+
+// ---------- Who leads ----------
+function leader(vals) { let best = null; Object.keys(vals).forEach(k => { if (vals[k] != null && (best == null || vals[k] > vals[best])) best = k; }); return best; }
+const cards = [];
+if (R) { const t = leader(R.adoption.values); cards.push(['Money', D.companies[t], D.colors[t], R.adoption.values[t] + '% of US businesses pay (' + R.adoption.period + ')']); }
+if (dev.pypi && dev.npm) { const a = leader(dev.pypi.latest), b = leader(dev.npm.latest); cards.push(['Developer downloads', D.companies[a] + (a === b ? '' : ' / ' + D.companies[b]), D.colors[a], 'PyPI: ' + D.companies[a] + ', npm: ' + D.companies[b]]); }
+if ((D.apps || []).length) { const ranked = D.apps.filter(a => a.rank).sort((a, b) => a.rank - b.rank)[0]; if (ranked) cards.push(['Consumer app', ranked.name, D.colors[ranked.lab], 'US top-free rank #' + ranked.rank]); }
+if (A) { const yv = {}; labs.forEach(l => { if (A.labs[l] && A.labs[l].yt) yv[l] = A.labs[l].yt.views[0]; }); const best = leader(yv); if (best) cards.push(['YouTube, 7 days', D.companies[best], D.colors[best], fmt(yv[best]) + ' views, all names']); }
+if (D.polymarket && D.polymarket.events[0]) { const ev = D.polymarket.events[0]; const n = Object.keys(ev.odds).sort((a, b) => ev.odds[b] - ev.odds[a])[0]; cards.push(['Market odds', n, rev[n] ? D.colors[rev[n]] : GREY, ev.odds[n].toFixed(0) + '% to have the best model, ' + ev.end]); }
+$('lead').innerHTML = cards.map(c => '<div class="lc"><div class="k">' + esc(c[0]) + '</div><div class="v" style="color:' + c[2] + '">' + esc(c[1]) + '</div><div class="d">' + esc(c[3]) + '</div></div>').join('');
+
+// ---------- Methods ----------
+const as = k => (D.dev[k] ? D.dev[k].as_of : '–');
+const rows = [
+  ['Money', '<a href="https://ramp.com/data/ai-index">Ramp AI Index</a>', 'Share of US businesses on Ramp that pay a vendor, and share of token spend', R ? R.adoption.period + '; tokens ' + R.token_spend.period : '–', 'Ramp customers only. Meta not reported. Page says it likely understates adoption.'],
+  ['Developer usage', '<a href="https://pypistats.org">PyPI Stats</a> and <a href="https://api.npmjs.org">npm API</a>', 'Weekly SDK downloads: anthropic, openai, xai-sdk, llama-stack-client; @anthropic-ai/sdk, openai, @ai-sdk/xai, llama-stack-client', 'Week ending ' + as('pypi'), 'Installs, not use. xAI and Meta are called through the OpenAI SDK, so their numbers are undercounts. CI installs inflate all.'],
+  ['Developer usage', '<a href="https://docs.github.com/en/rest/search">GitHub search API</a>', 'Pull requests whose branch starts with claude/ or codex/', 'Week ending ' + as('agent_prs'), 'Default prefixes only. Renamed branches and local agent work are missed. Claude prefixes come from several Claude surfaces. xAI and Meta have no verified prefix.'],
+  ['Consumer apps', '<a href="https://developer.apple.com/library/archive/documentation/AudioVideo/Conceptual/iTuneSearchAPI/">Apple iTunes Search API and RSS</a>', 'Chart rank, rating counts, newest 500 written reviews', (D.apps[0] || {}).as_of || '–', 'US iPhone only. No Android, web or Mac. Written reviews are a small share of users.'],
+  ['Attention', '<a href="https://developers.google.com/youtube/v3">YouTube Data API v3</a>', 'Views of the 50 most-viewed videos per name published in the window, for every name of a lab or product (see the chart notes). Videos of 4 minutes or longer only', A ? A.window : '–', 'Top 50 only. Videos can mention a product in the title without being about it. Views keep growing after the window.'],
+  ['Attention', '<a href="https://hn.algolia.com/api">Hacker News (Algolia)</a>', 'Stories and comments with any name of the lab or product, each item counted once', A ? A.window : '–', 'Developer audience. "Codex" can also match non-OpenAI uses.'],
+  ['Attention', '<a href="https://wikimedia.org/api/rest_v1/">Wikimedia pageviews</a>', 'Daily views of several English articles per lab (company, products, models)', A ? A.window : '–', 'Grok Bot redirects to the Grok article, so it cannot be isolated.'],
+  ['Attention', '<a href="https://www.gdeltproject.org">GDELT</a>', 'Share of monitored news volume mentioning any name of each lab', A ? A.window : '–', 'Counts all mentions, positive or negative. Meta\'s Muse names are recent, and "Meta Llama" can match older Llama news. Cursor (owned by SpaceXAI since Aug 2026) is not counted under xAI. GDELT rejects the short name "xAI" in quotes, so it is only used for Hacker News.'],
+  ['Market odds', '<a href="https://polymarket.com">Polymarket</a>', 'Probability that the lab has the best model on the resolution date', D.polymarket ? D.polymarket.as_of : '–', 'Crowd opinion with money behind it. Thin markets can move on one trade.']
+];
+$('methods').innerHTML = '<tr><th class="l">Panel</th><th class="l">Source</th><th class="l">Measures</th><th class="l">Date</th><th class="l">Limits</th></tr>' + rows.map(r => '<tr>' + r.map(c => '<td class="l">' + c + '</td>').join('') + '</tr>').join('');
+$('notmeasured').textContent = 'Not measured, because no free public source gives a reliable number: usage inside X, web traffic (Similarweb), mobile downloads (Sensor Tower), and API token share by lab on OpenRouter. Google is not tracked as a lab here.';
+</script>

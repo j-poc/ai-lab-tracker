@@ -1,0 +1,46 @@
+{
+  "ramp_ai_index": {
+    "source": "https://ramp.com/data/ai-index",
+    "retrieved": "2026-11-15",
+    "verified_by_hand": false,
+    "adoption": {
+      "label": "Share of US businesses paying for the vendor",
+      "period": "Oct 2026",
+      "prior_period": "Sep 2026",
+      "values": {
+        "anthropic": 44.8,
+        "openai": 40.6,
+        "xai": 6.3,
+        "meta": null
+      },
+      "prior": {
+        "anthropic": 43.7,
+        "openai": 40.6,
+        "xai": 4.1,
+        "meta": null
+      },
+      "others": {}
+    },
+    "token_spend": {
+      "label": "Share of token spend",
+      "period": "week ending 2026-11-01",
+      "prior_period": "week ending 2026-10-04",
+      "values": {
+        "anthropic": 49.3,
+        "openai": 46.1,
+        "xai": 2.4,
+        "meta": null
+      },
+      "prior": {
+        "anthropic": 53.2,
+        "openai": 42.3,
+        "xai": 2.5,
+        "meta": null
+      },
+      "others": {
+        "Google": 1.7
+      }
+    },
+    "note": "Meta is not reported by Ramp. Figures read from the Ramp page on 2026-11-15 in two separate fetches that agreed; not yet compared by eye in a browser."
+  }
+}

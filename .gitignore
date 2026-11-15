@@ -1,0 +1,6 @@
+__pycache__/
+*.log
+*.bak
+dashboard.html
+artifact.html
+site/
