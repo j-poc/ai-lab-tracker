@@ -62,7 +62,7 @@ a{color:inherit}
   <h2 class="sec">Developer usage</h2>
   <p class="sec-sub">What developers build with. Downloads are a proxy: they count installs, not use.</p>
   <div class="grid">
-    <div class="card"><h3>Agent pull requests per week</h3><p>Pull requests opened from the default branch prefix of each cloud coding agent: <code>claude/</code> and <code>codex/</code>. xAI and Meta have no verified prefix, so they are not shown.</p><div class="chart"><canvas id="prs"></canvas></div></div>
+    <div class="card"><h3>Agent pull requests per week</h3><p>Pull requests opened from the default branch prefix of each cloud coding agent: <code>claude/</code>, <code>codex/</code> and <code>cursor/</code>. Cursor is owned by SpaceXAI since Aug 2026, so it is the dashed xAI line. xAI\u2019s own Grok Bot has no verified prefix. Meta has none.</p><div class="chart"><canvas id="prs"></canvas></div></div>
     <div class="card"><h3>Growth: last 4 weeks vs the 4 weeks before</h3><p>Change in each signal. It ignores the total, so a young product is not penalized for its size.</p><div class="chart"><canvas id="growth"></canvas></div></div>
     <div class="card wide"><h3>Latest week</h3><p id="devasof"></p><div class="scroll"><table id="devtbl"></table></div></div>
   </div>
@@ -83,6 +83,13 @@ a{color:inherit}
     <div class="card"><h3>Wikipedia page views, all articles</h3><p id="wikis"></p><div class="chart"><canvas id="wiki"></canvas></div></div>
     <div class="card"><h3>Share of world news volume, all names</h3><p id="newss"></p><div class="chart"><canvas id="news"></canvas></div></div>
     <div class="card wide"><h3>Product detail</h3><div class="scroll"><table id="atttbl"></table></div></div>
+  </div>
+
+  <h2 class="sec">Model quality</h2>
+  <p class="sec-sub">How people rate each lab\u2019s best model in blind head-to-head votes on Arena (formerly LMArena). This is quality, not popularity. Each lab is shown by its best model on each board.</p>
+  <div class="grid">
+    <div class="card"><h3>Elo points behind the top model</h3><p id="arenanote"></p><div class="chart"><canvas id="arena"></canvas></div></div>
+    <div class="card"><h3>Best model of each lab</h3><p id="arenaasof"></p><div class="scroll"><table id="arenatbl"></table></div></div>
   </div>
 
   <h2 class="sec">Market odds</h2>
@@ -140,7 +147,7 @@ if (R) {
 const dev = D.dev || {};
 if (dev.agent_prs) {
   const p = dev.agent_prs;
-  new Chart('prs', {type:'line', data:{labels:p.dates, datasets:['anthropic','openai'].map(l => ({label:D.companies[l] + ' (' + (l === 'anthropic' ? 'claude/' : 'codex/') + ')', data:p.series[l], borderColor:D.colors[l], backgroundColor:D.colors[l], tension:.3, pointRadius:3}))},
+  new Chart('prs', {type:'line', data:{labels:p.dates, datasets:['anthropic','openai'].map(l => ({label:D.companies[l] + ' (' + (l === 'anthropic' ? 'claude/' : 'codex/') + ')', data:p.series[l], borderColor:D.colors[l], backgroundColor:D.colors[l], tension:.3, pointRadius:3})).concat(dev.agent_prs_cursor ? [{label:D.companies.xai + ' (Cursor, cursor/)', data:dev.agent_prs_cursor.series.xai, borderColor:D.colors.xai, backgroundColor:D.colors.xai, borderDash:[6,4], tension:.3, pointRadius:3}] : [])},
     options:{maintainAspectRatio:false, interaction:{mode:'index', intersect:false}, plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true, grace:'10%', ticks:{callback:v => fmt(v)}}}}});
 }
 const gm = [['pypi','SDK downloads, PyPI'], ['npm','SDK downloads, npm'], ['agent_prs','Agent pull requests']].filter(x => dev[x[0]] && dev[x[0]].growth);
@@ -212,12 +219,28 @@ function pmChart(i) {
 pmChart(0); pmChart(1);
 
 // ---------- Who leads ----------
+// ---------- Model quality (Arena) ----------
+const AR = D.arena;
+if (AR) {
+  const keys = Object.keys(AR);
+  new Chart('arena', {type:'bar', data:{labels:keys.map(k => AR[k].title), datasets:labs.map(l => ({label:D.companies[l], data:keys.map(k => AR[k].labs[l] ? AR[k].labs[l].behind : null), backgroundColor:D.colors[l], borderRadius:4}))},
+    options:{maintainAspectRatio:false, plugins:{legend:{position:'bottom'}, tooltip:{callbacks:{label:t => { const b = AR[keys[t.dataIndex]].labs[labs[t.datasetIndex]]; return t.dataset.label + ': ' + t.parsed.y + ' behind (' + (b ? b.model + ', rank #' + b.rank : '') + ')'; }}}}, scales:{y:{beginAtZero:true, grace:'10%'}}}});
+  $('arenanote').textContent = 'Points between each lab\u2019s best model and the top model on the board, from any lab. 0 means the lab holds the top spot. Lower is better. About 35 points is a 55% win rate in a head-to-head vote.';
+  const d0 = AR[keys[0]];
+  $('arenaasof').textContent = 'Snapshot ' + d0.date + '. Rank is among ' + keys.map(k => AR[k].models + ' models on ' + AR[k].title).join(', ') + '. Top model overall: ' + d0.top.model + ' (' + d0.top.org + ').';
+  $('arenatbl').innerHTML = '<tr><th class="l">Lab</th>' + keys.map(k => '<th class="l">' + esc(AR[k].title) + '</th>').join('') + '</tr>' +
+    labs.map(l => '<tr><td class="l"><span class="dot" style="background:' + D.colors[l] + '"></span>' + esc(D.companies[l]) + '</td>' + keys.map(k => { const b = AR[k].labs[l]; return '<td class="l">' + (b ? esc(b.model) + '<br><span class="mute">#' + b.rank + ', Elo ' + b.rating + '</span>' : '<span class="mute">n/a</span>') + '</td>'; }).join('') + '</tr>').join('');
+} else {
+  $('arenanote').textContent = 'No data yet.';
+}
+
 function leader(vals) { let best = null; Object.keys(vals).forEach(k => { if (vals[k] != null && (best == null || vals[k] > vals[best])) best = k; }); return best; }
 const cards = [];
 if (R) { const t = leader(R.adoption.values); cards.push(['Money', D.companies[t], D.colors[t], R.adoption.values[t] + '% of US businesses pay (' + R.adoption.period + ')']); }
 if (dev.pypi && dev.npm) { const a = leader(dev.pypi.latest), b = leader(dev.npm.latest); cards.push(['Developer downloads', D.companies[a] + (a === b ? '' : ' / ' + D.companies[b]), D.colors[a], 'PyPI: ' + D.companies[a] + ', npm: ' + D.companies[b]]); }
 if ((D.apps || []).length) { const ranked = D.apps.filter(a => a.rank).sort((a, b) => a.rank - b.rank)[0]; if (ranked) cards.push(['Consumer app', ranked.name, D.colors[ranked.lab], 'US top-free rank #' + ranked.rank]); }
 if (A) { const yv = {}; labs.forEach(l => { if (A.labs[l] && A.labs[l].yt) yv[l] = A.labs[l].yt.views[0]; }); const best = leader(yv); if (best) cards.push(['YouTube, 7 days', D.companies[best], D.colors[best], fmt(yv[best]) + ' views, all names']); }
+if (AR && AR.text) { const t = Object.keys(AR.text.labs).sort((a, b) => AR.text.labs[a].rank - AR.text.labs[b].rank)[0]; if (t) cards.push(['Model quality', D.companies[t], D.colors[t], 'Best Arena text rank #' + AR.text.labs[t].rank + ': ' + AR.text.labs[t].model]); }
 if (D.polymarket && D.polymarket.events[0]) { const ev = D.polymarket.events[0]; const n = Object.keys(ev.odds).sort((a, b) => ev.odds[b] - ev.odds[a])[0]; cards.push(['Market odds', n, rev[n] ? D.colors[rev[n]] : GREY, ev.odds[n].toFixed(0) + '% to have the best model, ' + ev.end]); }
 $('lead').innerHTML = cards.map(c => '<div class="lc"><div class="k">' + esc(c[0]) + '</div><div class="v" style="color:' + c[2] + '">' + esc(c[1]) + '</div><div class="d">' + esc(c[3]) + '</div></div>').join('');
 
@@ -226,7 +249,8 @@ const as = k => (D.dev[k] ? D.dev[k].as_of : '–');
 const rows = [
   ['Money', '<a href="https://ramp.com/data/ai-index">Ramp AI Index</a>', 'Share of US businesses on Ramp that pay a vendor, and share of token spend', R ? R.adoption.period + '; tokens ' + R.token_spend.period : '–', 'Ramp customers only. Meta not reported. Page says it likely understates adoption.'],
   ['Developer usage', '<a href="https://pypistats.org">PyPI Stats</a> and <a href="https://api.npmjs.org">npm API</a>', 'Weekly SDK downloads: anthropic, openai, xai-sdk, llama-stack-client; @anthropic-ai/sdk, openai, @ai-sdk/xai, llama-stack-client', 'Week ending ' + as('pypi'), 'Installs, not use. xAI and Meta are called through the OpenAI SDK, so their numbers are undercounts. CI installs inflate all.'],
-  ['Developer usage', '<a href="https://docs.github.com/en/rest/search">GitHub search API</a>', 'Pull requests whose branch starts with claude/ or codex/', 'Week ending ' + as('agent_prs'), 'Default prefixes only. Renamed branches and local agent work are missed. Claude prefixes come from several Claude surfaces. xAI and Meta have no verified prefix.'],
+  ['Developer usage', '<a href="https://docs.github.com/en/rest/search">GitHub search API</a>', 'Pull requests whose branch starts with claude/, codex/ or cursor/', 'Week ending ' + as('agent_prs'), 'Default prefixes only. Renamed branches and local agent work are missed. Claude prefixes come from several Claude surfaces. cursor/ is Cursor, owned by SpaceXAI since Aug 2026, and is not the Grok Bot agent. GitHub search counts are approximate. Meta has no verified prefix.'],
+  ['Model quality', '<a href="https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset">Arena leaderboard dataset</a> (CC BY 4.0, by Arena / LMArena)', 'Best-rated model of each lab on the Text, Text coding and WebDev boards, and its points behind the top model', AR ? AR.text.date : '\u2013', 'Human votes on chat and coding answers. Style and vote mix affect results. A lab can list many variants, and we show its best one. Scores are not comparable across boards. Snapshot dates can lag by days.'],
   ['Consumer apps', '<a href="https://developer.apple.com/library/archive/documentation/AudioVideo/Conceptual/iTuneSearchAPI/">Apple iTunes Search API and RSS</a>', 'Chart rank, rating counts, newest 500 written reviews', (D.apps[0] || {}).as_of || '–', 'US iPhone only. No Android, web or Mac. Written reviews are a small share of users.'],
   ['Attention', '<a href="https://developers.google.com/youtube/v3">YouTube Data API v3</a>', 'Views of the 50 most-viewed videos per name published in the window, for every name of a lab or product (see the chart notes). Videos of 4 minutes or longer only', A ? A.window : '–', 'Top 50 only. Videos can mention a product in the title without being about it. Views keep growing after the window.'],
   ['Attention', '<a href="https://hn.algolia.com/api">Hacker News (Algolia)</a>', 'Stories and comments with any name of the lab or product, each item counted once', A ? A.window : '–', 'Developer audience. "Codex" can also match non-OpenAI uses.'],

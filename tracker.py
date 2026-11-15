@@ -33,8 +33,18 @@ COLORS = {"anthropic": "#D97757", "openai": "#10A37F", "xai": "#E5B93C", "meta":
 
 PYPI = {"anthropic": "anthropic", "openai": "openai", "xai": "xai-sdk", "meta": "llama-stack-client"}
 NPM = {"anthropic": "@anthropic-ai/sdk", "openai": "openai", "xai": "@ai-sdk/xai", "meta": "llama-stack-client"}
-# Default branch prefixes of cloud coding agents. Only Claude and Codex have a verified one.
-PR_PREFIX = {"anthropic": "claude/", "openai": "codex/"}
+# Default branch prefixes of cloud coding agents: (lab, prefix, metric). Meta has no verified prefix.
+# Cursor (owned by SpaceXAI since Aug 2026) is a separate series, so the xAI line stays visible but labeled.
+PR_SERIES = [("anthropic", "claude/", "agent_prs"), ("openai", "codex/", "agent_prs"), ("xai", "cursor/", "agent_prs_cursor")]
+
+# Arena (formerly LMArena) human-preference leaderboards. Official dataset, CC BY 4.0.
+ARENA_URL = "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset/resolve/main/{cfg}/latest-00000-of-00001.parquet"
+ARENA_BOARDS = [  # key -> (title, dataset config, category)
+    ("text", "Text, overall", "text", "overall"),
+    ("coding", "Text, coding", "text", "coding"),
+    ("webdev", "WebDev", "webdev", "overall"),
+]
+ARENA_ORGS = {"anthropic": "anthropic", "openai": "openai", "xai": "xai", "meta": "meta"}
 
 APPS = {  # key -> (App Store id, lab, name)
     "chatgpt": (6448311069, "openai", "ChatGPT"),
@@ -196,20 +206,63 @@ def collect_npm(con, windows):
 
 def collect_prs(con, windows):
     """Weekly pull requests opened from each agent's default branch prefix."""
-    for co, prefix in PR_PREFIX.items():
+    for co, prefix, metric in PR_SERIES:
         for s, e in windows:
             d = e.isoformat()
-            if have(con, d, co, "agent_prs"):
+            if have(con, d, co, metric):
                 continue
             q = f"is:pr head:{prefix} created:{s}..{e}"
             try:
                 n = gh_json("search/issues?per_page=1&q=" + urllib.parse.quote(q))["total_count"]
-                put(con, d, co, "agent_prs", n)
+                put(con, d, co, metric, n)
                 con.commit()
-                log(f"agent_prs {co} {d} = {n}")
+                log(f"{metric} {co} {d} = {n}")
             except Exception as ex:
-                log(f"agent_prs {co} {d} FAILED: {ex}")
+                log(f"{metric} {co} {d} FAILED: {ex}")
             time.sleep(7)  # search API: 30 requests/min plus a secondary limit
+
+
+# ---------- model quality (Arena) ----------
+def collect_arena(con):
+    """Best model of each lab on three Arena boards. Needs pyarrow to read the parquet files; skips if missing."""
+    try:
+        import io
+        import pyarrow.parquet as pq
+    except ImportError:
+        log("arena skipped: pyarrow is not installed")
+        return
+    out, asof = {}, None
+    cache = {}
+    for key, title, cfg, cat in ARENA_BOARDS:
+        try:
+            if cfg not in cache:
+                req = urllib.request.Request(ARENA_URL.format(cfg=cfg), headers={"User-Agent": "ai-lab-tracker"})
+                with urllib.request.urlopen(req, timeout=120) as r:
+                    cache[cfg] = pq.read_table(io.BytesIO(r.read())).to_pylist()
+            rows = [r for r in cache[cfg] if r["category"] == cat and r["rating"] is not None]
+            if not rows:
+                raise RuntimeError("no rows")
+            date = max(r["leaderboard_publish_date"] for r in rows)
+            rows = [r for r in rows if r["leaderboard_publish_date"] == date]
+            top = max(r["rating"] for r in rows)
+            labs = {}
+            for lab, org in ARENA_ORGS.items():
+                mine = [r for r in rows if r["organization"] == org]
+                if mine:
+                    b = max(mine, key=lambda r: r["rating"])
+                    labs[lab] = {"model": b["model_name"], "rating": round(b["rating"]), "rank": int(b["rank"]), "votes": int(b["vote_count"] or 0),
+                                 "behind": round(top - b["rating"])}
+                    put(con, date, lab, "arena_" + key, round(b["rating"]))
+            leader = max(rows, key=lambda r: r["rating"])
+            out[key] = {"title": title, "date": date, "models": len(rows), "top": {"model": leader["model_name"], "org": leader["organization"], "rating": round(top)}, "labs": labs}
+            asof = max(asof or date, date)
+            log(f"arena {key} ok ({date}, {len(rows)} models)")
+        except Exception as ex:
+            log(f"arena {key} FAILED: {ex}")
+    if out:
+        old = kv_get(con, "arena", {}) or {}
+        old.update(out)  # a failed board keeps its old values
+        kv_put(con, "arena", old)
 
 
 # ---------- consumer apps ----------
@@ -456,7 +509,7 @@ def build(con):
     labs = list(COMPANIES)
 
     dev = {}
-    for m in ("pypi", "npm", "agent_prs"):
+    for m in ("pypi", "npm", "agent_prs", "agent_prs_cursor"):
         ser = data.get(m, {})
         dates = sorted(ser)
         if not dates:
@@ -494,7 +547,7 @@ def build(con):
         "updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "companies": COMPANIES, "colors": COLORS, "products": {k: {"name": v[0], "lab": v[1]} for k, v in PRODUCTS.items()},
         "ramp": manual.get("ramp_ai_index"), "dev": dev, "apps": apps,
-        "attention": kv_get(con, "attention"), "polymarket": kv_get(con, "polymarket"),
+        "attention": kv_get(con, "attention"), "arena": kv_get(con, "arena"), "polymarket": kv_get(con, "polymarket"),
         "pm_names": PM_NAMES,
     }
 
@@ -504,12 +557,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--weeks", type=int, default=12)
     ap.add_argument("--no-collect", action="store_true")
-    ap.add_argument("--only", help="comma list: dev,apps,attention,market")
+    ap.add_argument("--only", help="comma list: dev,apps,attention,market,arena")
     args = ap.parse_args()
     TOKEN = gh_token()
     con = db()
     if not args.no_collect:
-        only = set(args.only.split(",")) if args.only else {"dev", "apps", "attention", "market"}
+        only = set(args.only.split(",")) if args.only else {"dev", "apps", "attention", "market", "arena"}
         windows, today = week_windows(args.weeks), utc_today().isoformat()
         if "dev" in only:
             if not TOKEN:
@@ -524,6 +577,8 @@ def main():
             collect_attention(con)
         if "market" in only:
             collect_polymarket(con)
+        if "arena" in only:
+            collect_arena(con)
         con.commit()
     payload = build(con)
     page = TEMPLATE.read_text().replace("__DATA__", json.dumps(payload))
