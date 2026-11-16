@@ -46,6 +46,16 @@ ARENA_BOARDS = [  # key -> (title, dataset config, category)
 ]
 ARENA_ORGS = {"anthropic": "anthropic", "openai": "openai", "xai": "xai", "meta": "meta"}
 
+# Cloudflare Radar: daily rank of Internet services (from 1.1.1.1 DNS data), Generative AI category.
+RADAR_URL = ("https://api.cloudflare.com/client/v4/radar/ranking/internet_services/timeseries_groups"
+             "?serviceCategory=Generative%20AI&dateRange=28d&limit=60&format=json")
+RADAR_NAMES = {"anthropic": "Claude / Anthropic", "openai": "ChatGPT / OpenAI", "xai": "Grok / xAI", "meta": "Meta AI"}
+RADAR_REF = "Google Gemini"
+
+# OpenRouter public usage dataset (CC BY 4.0). Needs an OpenRouter API key. Model author = text before "/" in the model slug.
+OPENROUTER_URL = "https://openrouter.ai/api/v1/datasets/rankings-daily?period=week&start_date={a}&end_date={b}"
+OPENROUTER_AUTHORS = {"anthropic": ("anthropic",), "openai": ("openai",), "xai": ("x-ai", "xai"), "meta": ("meta-llama", "meta")}
+
 APPS = {  # key -> (App Store id, lab, name)
     "chatgpt": (6448311069, "openai", "ChatGPT"),
     "claude": (6473753684, "anthropic", "Claude"),
@@ -263,6 +273,75 @@ def collect_arena(con):
         old = kv_get(con, "arena", {}) or {}
         old.update(out)  # a failed board keeps its old values
         kv_put(con, "arena", old)
+
+
+def collect_radar(con):
+    """Rank of each lab's chat site among Generative AI services on Cloudflare Radar, last 28 days."""
+    tok = os.environ.get("CLOUDFLARE_RADAR_TOKEN") or os.environ.get("CLOUDFLARE_API_TOKEN")
+    if not tok:
+        log("radar skipped: no Cloudflare token")
+        return
+    try:
+        s = http_json(RADAR_URL, {"Authorization": "Bearer " + tok}, retries=1)["result"]["serie_0"]
+        today = utc_today().isoformat()
+        keep = [i for i, t in enumerate(s["timestamps"]) if t[:10] < today]  # today is a partial day
+        if not keep:
+            raise RuntimeError("no finished days")
+        dates = [s["timestamps"][i][:10] for i in keep]
+        pick = lambda name: [s[name][i] for i in keep] if name in s else None
+        series = {lab: pick(name) for lab, name in RADAR_NAMES.items()}
+        if not any(series.values()):
+            raise RuntimeError("none of the services found")
+        for lab, ranks in series.items():
+            for d, r in zip(dates, ranks or []):
+                if r is not None:
+                    put(con, d, lab, "radar_rank", r)
+        kv_put(con, "radar", {"dates": dates, "series": series, "reference": {"name": RADAR_REF, "ranks": pick(RADAR_REF)},
+                              "services": len([k for k in s if k != "timestamps"]), "as_of": dates[-1]})
+        log(f"radar ok ({dates[0]} to {dates[-1]})")
+    except Exception as ex:
+        log(f"radar FAILED: {ex}")  # the old values stay
+
+
+def collect_openrouter(con):
+    """Share of OpenRouter tokens by model author, weekly. Top 50 models per week only, so small labs are understated."""
+    key = os.environ.get("OPENROUTER_API_KEY")
+    if not key:
+        log("openrouter skipped: no OPENROUTER_API_KEY")
+        return
+    try:
+        end = utc_today() - timedelta(days=1)
+        res = http_json(OPENROUTER_URL.format(a=(end - timedelta(days=63)).isoformat(), b=end.isoformat()), {"Authorization": "Bearer " + key}, retries=1)
+        by_week = {}
+        for r in res["data"]:
+            by_week.setdefault(r["date"], {})[r["model_permaslug"]] = int(r["total_tokens"])
+        weeks = sorted(by_week)[-8:]
+        if len(weeks) < 2:
+            raise RuntimeError("fewer than 2 weeks")
+        owner = {a: lab for lab, names in OPENROUTER_AUTHORS.items() for a in names}
+        tokens = {lab: [] for lab in OPENROUTER_AUTHORS}
+        totals, top = [], {}
+        for w in weeks:
+            tot, authors = 0, {}
+            for slug, n in by_week[w].items():
+                tot += n
+                if slug != "other":
+                    authors[slug.split("/")[0]] = authors.get(slug.split("/")[0], 0) + n
+            totals.append(tot)
+            for lab in tokens:
+                tokens[lab].append(sum(n for a, n in authors.items() if owner.get(a) == lab))
+            top[w] = sorted(authors.items(), key=lambda x: -x[1])[:5]
+        share = {lab: [round(100 * t / tot, 2) if tot else None for t, tot in zip(v, totals)] for lab, v in tokens.items()}
+        for lab, v in share.items():
+            for w, x in zip(weeks, v):
+                if x is not None:
+                    put(con, w, lab, "openrouter_share", x)
+        latest = weeks[-1]
+        kv_put(con, "openrouter", {"weeks": weeks, "share": share, "tokens": tokens, "total": totals,
+                                   "top_authors": [[a, round(100 * n / totals[-1], 1)] for a, n in top[latest]], "as_of": res["meta"].get("as_of", latest)[:10]})
+        log(f"openrouter ok ({weeks[0]} to {latest})")
+    except Exception as ex:
+        log(f"openrouter FAILED: {ex}")  # the old values stay
 
 
 # ---------- consumer apps ----------
@@ -601,6 +680,7 @@ def build(con):
         "companies": COMPANIES, "colors": COLORS, "products": {k: {"name": v[0], "lab": v[1]} for k, v in PRODUCTS.items()},
         "ramp": manual.get("ramp_ai_index"), "dev": dev, "apps": apps,
         "attention": kv_get(con, "attention"), "arena": kv_get(con, "arena"), "polymarket": kv_get(con, "polymarket"),
+        "radar": kv_get(con, "radar"), "openrouter": kv_get(con, "openrouter"),
         "pm_names": PM_NAMES,
     }
 
@@ -610,12 +690,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--weeks", type=int, default=12)
     ap.add_argument("--no-collect", action="store_true")
-    ap.add_argument("--only", help="comma list: dev,apps,attention,market,arena")
+    ap.add_argument("--only", help="comma list: dev,apps,attention,market,arena,radar,openrouter")
     args = ap.parse_args()
     TOKEN = gh_token()
     con = db()
     if not args.no_collect:
-        only = set(args.only.split(",")) if args.only else {"dev", "apps", "attention", "market", "arena"}
+        only = set(args.only.split(",")) if args.only else {"dev", "apps", "attention", "market", "arena", "radar", "openrouter"}
         windows, today = week_windows(args.weeks), utc_today().isoformat()
         if "dev" in only:
             if not TOKEN:
@@ -632,6 +712,10 @@ def main():
             collect_polymarket(con)
         if "arena" in only:
             collect_arena(con)
+        if "radar" in only:
+            collect_radar(con)
+        if "openrouter" in only:
+            collect_openrouter(con)
         con.commit()
     payload = build(con)
     page = TEMPLATE.read_text().replace("__DATA__", json.dumps(payload))

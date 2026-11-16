@@ -15,7 +15,7 @@ h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:var(--
 .sub{color:var(--mute);font-size:13px;margin-bottom:18px}
 .read{background:var(--warn-bg);color:var(--warn-ink);border-radius:10px;padding:12px 14px;font-size:13.5px;margin-bottom:16px}
 .read ul{margin:4px 0 0;padding-left:18px}
-.lead{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.lead{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .lead>*,.grid>*{min-width:0}
 .lc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
 .lc .k{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--mute)}
@@ -67,10 +67,28 @@ a{color:inherit}
     <div class="card wide"><h3>Latest week</h3><p id="devasof"></p><div class="scroll"><table id="devtbl"></table></div></div>
   </div>
 
+  <div id="orsec" hidden>
+    <h2 class="sec">Real API usage on OpenRouter</h2>
+    <p class="sec-sub">Tokens that developers send through OpenRouter, grouped by the lab that made the model. This is real use, not installs. It covers OpenRouter users only.</p>
+    <div class="grid">
+      <div class="card"><h3>Share of OpenRouter tokens, by lab</h3><p id="ornote"></p><div class="chart"><canvas id="orchart"></canvas></div></div>
+      <div class="card"><h3>Biggest model authors, latest week</h3><p id="orasof"></p><div class="scroll"><table id="ortbl"></table></div></div>
+    </div>
+  </div>
+
   <h2 class="sec">Consumer apps</h2>
   <p class="sec-sub">US iPhone only. Sorted by written reviews per day, which shows what is happening now. Total ratings favor old apps.</p>
   <div class="grid"><div class="card wide"><div class="scroll"><table id="apps"></table></div>
     <div class="note">Rank is on the US App Store top-free chart (top 200) and the Productivity chart. Reviews per day uses the newest 500 written reviews. The 7-day ratings gain needs a snapshot from a week ago.</div></div></div>
+
+  <div id="radarsec" hidden>
+    <h2 class="sec">Web traffic rank</h2>
+    <p class="sec-sub">How popular each lab&rsquo;s chat site is on the open web, from Cloudflare Radar. It ranks sites by how many people look them up, so it covers the web, not apps. Rank 1 is the top.</p>
+    <div class="grid">
+      <div class="card"><h3>Rank among Generative AI sites, last 28 days</h3><p id="radarnote"></p><div class="chart"><canvas id="radar"></canvas></div></div>
+      <div class="card"><h3>Latest rank</h3><p id="radarasof"></p><div class="scroll"><table id="radartbl"></table></div></div>
+    </div>
+  </div>
 
   <h2 class="sec">Attention, last 7 days</h2>
   <p class="sec-sub" id="attsub"></p>
@@ -237,6 +255,40 @@ if (AR) {
   $('arenanote').textContent = 'No data yet.';
 }
 
+// ---------- Web traffic rank (Cloudflare Radar) ----------
+const RD = D.radar;
+if (RD) {
+  $('radarsec').hidden = false;
+  const colors = labs.map(l => D.colors[l]);
+  const ds = labs.filter(l => RD.series[l]).map(l => ({label:D.companies[l], data:RD.series[l], borderColor:D.colors[l], backgroundColor:D.colors[l], tension:.25, pointRadius:2}));
+  if (RD.reference && RD.reference.ranks) ds.push({label:RD.reference.name, data:RD.reference.ranks, borderColor:GREY, backgroundColor:GREY, borderDash:[5,4], tension:.25, pointRadius:0});
+  const all = ds.flatMap(d => d.data.filter(v => v != null));
+  new Chart('radar', {type:'line', data:{labels:RD.dates, datasets:ds},
+    options:{maintainAspectRatio:false, plugins:{legend:{position:'bottom'}, tooltip:{callbacks:{label:t => t.dataset.label + ': #' + t.parsed.y}}},
+      scales:{y:{reverse:true, min:1, max:Math.max(...all) + 1, ticks:{precision:0, callback:v => '#' + v}, grace:0}, x:{ticks:{maxTicksLimit:8}}}}});
+  $('radarnote').textContent = 'Daily rank, lower is better. Dashed grey line: Google Gemini, for scale (the only Google service shown). Meta AI is the only Meta product ranked.';
+  $('radarasof').textContent = 'Latest full day ' + RD.as_of + ', among ' + RD.services + ' Generative AI services.';
+  const last = a => a ? a[a.length - 1] : null, first = a => a ? a.find(v => v != null) : null;
+  const rows = labs.filter(l => RD.series[l]).map(l => [D.companies[l], D.colors[l], last(RD.series[l]), first(RD.series[l])]);
+  if (RD.reference && RD.reference.ranks) rows.push([RD.reference.name, GREY, last(RD.reference.ranks), first(RD.reference.ranks)]);
+  rows.sort((a, b) => (a[2] == null) - (b[2] == null) || a[2] - b[2]);
+  $('radartbl').innerHTML = '<tr><th class="l">Service</th><th>Rank</th><th>vs 28 days ago</th></tr>' + rows.map(r => {
+    const d = r[2] != null && r[3] != null ? r[3] - r[2] : null;
+    return '<tr><td class="l">' + dot(r[1]) + esc(r[0]) + '</td><td>' + (r[2] == null ? '–' : '#' + r[2]) + '</td><td>' + (d == null ? '–' : d === 0 ? 'no change' : '<span class="' + (d > 0 ? 'up' : 'down') + '">' + (d > 0 ? 'up ' : 'down ') + Math.abs(d) + '</span>') + '</td></tr>'; }).join('');
+}
+
+// ---------- OpenRouter usage ----------
+const OR = D.openrouter;
+if (OR) {
+  $('orsec').hidden = false;
+  new Chart('orchart', {type:'line', data:{labels:OR.weeks, datasets:labs.map(l => ({label:D.companies[l], data:OR.share[l], borderColor:D.colors[l], backgroundColor:D.colors[l], tension:.3, pointRadius:3}))},
+    options:{maintainAspectRatio:false, plugins:{legend:{position:'bottom'}, tooltip:{callbacks:{label:t => t.dataset.label + ': ' + (t.parsed.y == null ? '–' : t.parsed.y.toFixed(1) + '%')}}},
+      scales:{y:{beginAtZero:true, grace:'12%', ticks:{callback:v => v + '%'}}}}});
+  $('ornote').textContent = 'Weekly share of all tokens. Only the 50 biggest models of each week are named, so small labs are understated. Models of one lab can sit outside the top 50.';
+  $('orasof').textContent = 'Week starting ' + OR.weeks[OR.weeks.length - 1] + '. Share of all OpenRouter tokens. Data as of ' + OR.as_of + '.';
+  $('ortbl').innerHTML = '<tr><th class="l">Model author</th><th>Share of tokens</th></tr>' + OR.top_authors.map(a => '<tr><td class="l">' + esc(({'x-ai':'xAI','meta-llama':'Meta','openai':'OpenAI','anthropic':'Anthropic','z-ai':'Z.ai','deepseek':'DeepSeek','google':'Google'})[a[0]] || a[0]) + '</td><td>' + a[1].toFixed(1) + '%</td></tr>').join('');
+}
+
 function leader(vals) { let best = null; Object.keys(vals).forEach(k => { if (vals[k] != null && (best == null || vals[k] > vals[best])) best = k; }); return best; }
 const cards = [];
 if (R) { const t = leader(R.adoption.values); cards.push(['Money', D.companies[t], D.colors[t], R.adoption.values[t] + '% of US businesses pay (' + R.adoption.period + ')']); }
@@ -244,6 +296,7 @@ if (dev.pypi && dev.npm) { const a = leader(dev.pypi.latest), b = leader(dev.npm
 if ((D.apps || []).length) { const ranked = D.apps.filter(a => a.rank).sort((a, b) => a.rank - b.rank)[0]; if (ranked) cards.push(['Consumer app', ranked.name, D.colors[ranked.lab], 'US top-free rank #' + ranked.rank]); }
 if (A) { const yv = {}; labs.forEach(l => { if (A.labs[l] && A.labs[l].yt) yv[l] = A.labs[l].yt.views[0]; }); const best = leader(yv); if (best) cards.push(['YouTube, last full week', D.companies[best], D.colors[best], fmt(yv[best]) + ' views, all names']); }
 if (AR && AR.text) { const t = Object.keys(AR.text.labs).sort((a, b) => AR.text.labs[a].rank - AR.text.labs[b].rank)[0]; if (t) cards.push(['Model quality', D.companies[t], D.colors[t], 'Best Arena text rank #' + AR.text.labs[t].rank + ': ' + AR.text.labs[t].model]); }
+if (RD) { const best = labs.filter(l => RD.series[l] && RD.series[l].length).sort((a, b) => RD.series[a].slice(-1)[0] - RD.series[b].slice(-1)[0])[0]; if (best) cards.push(['Web traffic', D.companies[best], D.colors[best], '#' + RD.series[best].slice(-1)[0] + ' of Generative AI sites (Cloudflare Radar)']); }
 if (D.polymarket && D.polymarket.events[0]) { const ev = D.polymarket.events[0]; const n = Object.keys(ev.odds).sort((a, b) => ev.odds[b] - ev.odds[a])[0]; cards.push(['Market odds', n, rev[n] ? D.colors[rev[n]] : GREY, ev.odds[n].toFixed(0) + '% to have the best model, ' + ev.end]); }
 $('lead').innerHTML = cards.map(c => '<div class="lc"><div class="k">' + esc(c[0]) + '</div><div class="v" style="color:' + c[2] + '">' + esc(c[1]) + '</div><div class="d">' + esc(c[3]) + '</div></div>').join('');
 
@@ -260,8 +313,10 @@ const rows = [
   ['Attention', '<a href="https://arctic-shift.photon-reddit.com">Reddit via Arctic Shift archive</a>', 'Posts per week in each lab\'s main subreddits', A ? A.window : '–', 'Community size drives the total, so the change matters more. Posts only, no comments. The archive can lag or miss removed posts. Reddit blocks direct automated reads, so a free archive is used.'],
   ['Attention', '<a href="https://wikimedia.org/api/rest_v1/">Wikimedia pageviews</a>', 'Daily views of several English articles per lab (company, products, models)', A ? A.window : '–', 'Grok Bot redirects to the Grok article, so it cannot be isolated.'],
   ['Attention', '<a href="https://www.gdeltproject.org">GDELT</a>', 'Share of monitored news volume mentioning any name of each lab', A ? A.window : '–', 'Counts all mentions, positive or negative. Meta\'s Muse names are recent, and "Meta Llama" can match older Llama news. Cursor (owned by SpaceXAI since Aug 2026) is not counted under xAI. GDELT rejects the short name "xAI" in quotes, so it is only used for Hacker News.'],
+  ['Web traffic rank', '<a href="https://radar.cloudflare.com/ai-insights">Cloudflare Radar</a> internet services ranking', 'Daily rank of each lab\'s chat site among Generative AI services, last 28 days', RD ? RD.as_of : '–', 'Ranks sites by DNS lookups on Cloudflare\'s 1.1.1.1 resolver, so it is a proxy for web use. It is not a user count. Apps and API use are not included. Only one Meta service (Meta AI) is ranked.'],
+  ['Real API usage', '<a href="https://openrouter.ai/rankings">OpenRouter rankings dataset</a> (CC BY 4.0, source: OpenRouter)', 'Weekly tokens by model author, as a share of all tokens', OR ? OR.as_of : '–', 'OpenRouter users only, and they favor cheap and open models. Top 50 models per week only. Token counts come from each provider\'s own tokenizer.'],
   ['Market odds', '<a href="https://polymarket.com">Polymarket</a>', 'Probability that the lab has the best model on the resolution date', D.polymarket ? D.polymarket.as_of : '–', 'Crowd opinion with money behind it. Thin markets can move on one trade.']
 ];
 $('methods').innerHTML = '<tr><th class="l">Panel</th><th class="l">Source</th><th class="l">Measures</th><th class="l">Date</th><th class="l">Limits</th></tr>' + rows.map(r => '<tr>' + r.map(c => '<td class="l">' + c + '</td>').join('') + '</tr>').join('');
-$('notmeasured').textContent = 'Not measured, because no free public source gives a reliable number: usage inside X, web traffic (Similarweb), mobile downloads (Sensor Tower), and API token share by lab on OpenRouter. Google is not tracked as a lab here.';
+$('notmeasured').textContent = 'Not measured, because no free public source gives a reliable number: usage inside X, visit counts (Similarweb), and mobile downloads (Sensor Tower). Web traffic rank and OpenRouter tokens are partial proxies. Google is not tracked as a lab here.';
 </script>
