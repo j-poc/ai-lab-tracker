@@ -435,17 +435,18 @@ def yt_collect(con, key, end, targets):
                     log(f"yt: quota used up after {done} new searches; the next run continues")
                     return cache
                 log(f"yt {k} FAILED: {str(ex)[:100]}")
-    for k in [k for k in cache if datetime.fromisoformat(k.split("|")[1]).date() < end - timedelta(days=28)]:
+    for k in [k for k in cache if k.split("|")[0] not in targets or datetime.fromisoformat(k.split("|")[1]).date() < end - timedelta(days=28)]:
         del cache[k]  # keep four weeks of saved results
     kv_put(con, "yt_units", cache)
     log(f"yt: {done} new searches, {len(todo) * 2 - tried} already saved")
     return cache
 
 
-def yt_row(cache, tid, end):
+def yt_row(cache, tids, end):
     """Build the dashboard row for one target from saved searches. Weeks are fixed (Monday to Sunday), so last week is reused."""
     def week(w):
-        ks = [f"{tid}|{w.isoformat()}|{ln}" for ln in ("medium", "long")]
+        tl = [tids] if isinstance(tids, str) else tids
+        ks = [f"{t}|{w.isoformat()}|{ln}" for t in tl for ln in ("medium", "long")]
         if not all(k in cache for k in ks):
             return None
         seen = {}
@@ -544,7 +545,9 @@ def collect_attention(con):
     yt_cache = {}
     if key and "yt" in parts:
         targets = {f"prod:{pk}": (pv[3], pv[4]) for pk, pv in PRODUCTS.items() if pv[3]}
-        targets.update({f"lab:{lab}": (al["yt"], [m.lower() for m in al["yt"]]) for lab, al in ALIASES.items()})
+        # One search per name. One OR search returns the top 50 matches of all names together, and most of them
+        # do not have a name in the title, so a lab total would be far too low (Meta showed 32 views).
+        targets.update({f"lab:{lab}:{n}": ([n], [n.lower()]) for lab, al in ALIASES.items() for n in al["yt"]})
         yt_cache = yt_collect(con, key, yt_end, targets)
 
     def part(row, old, part_name, field, fn):
@@ -570,7 +573,7 @@ def collect_attention(con):
                                                  sum(wiki_views(t, end - timedelta(days=13), end - timedelta(days=7)) for t in al["wiki"])])
         part(row, old, "hn", "hn", lambda: [hn_union(al["hn"], cur_a, cur_b), hn_union(al["hn"], pri_a, pri_b)])
         if key:
-            part(row, old, "yt", "yt", lambda: yt_row(yt_cache, f"lab:{lab}", yt_end))
+            part(row, old, "yt", "yt", lambda: yt_row(yt_cache, [f"lab:{lab}:{n}" for n in al["yt"]], yt_end))
         def reddit():
             subs = {r: [reddit_posts(r, end - timedelta(days=6), end), reddit_posts(r, end - timedelta(days=13), end - timedelta(days=7))] for r in REDDIT[lab]}
             row["reddit_subs"] = subs
