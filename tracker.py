@@ -31,8 +31,13 @@ MANUAL = HERE / "manual.json"
 COMPANIES = {"anthropic": "Anthropic", "openai": "OpenAI", "xai": "xAI (SpaceXAI)", "meta": "Meta"}
 COLORS = {"anthropic": "#D97757", "openai": "#10A37F", "xai": "#E5B93C", "meta": "#4C8DF6"}
 
-PYPI = {"anthropic": "anthropic", "openai": "openai", "xai": "xai-sdk", "meta": "llama-stack-client"}
-NPM = {"anthropic": "@anthropic-ai/sdk", "openai": "openai", "xai": "@ai-sdk/xai", "meta": "llama-stack-client"}
+# Every official package of each lab, summed. Agent SDKs and coding-agent CLIs count too, so no lab is judged by one package only.
+# A package that depends on another one (openai-agents needs openai) adds to both counts, so these are installs, not users.
+PYPI = {"anthropic": ["anthropic", "claude-agent-sdk", "claude-code-sdk"], "openai": ["openai", "openai-agents", "openai-codex"], "xai": ["xai-sdk"],
+        "meta": ["llama-api-client", "llama-models", "llama-stack-client", "llama-stack"]}
+NPM = {"anthropic": ["@anthropic-ai/sdk", "@anthropic-ai/claude-code", "@anthropic-ai/claude-agent-sdk"],
+       "openai": ["openai", "@openai/codex", "@openai/agents", "@openai/codex-sdk"], "xai": [],  # xAI has no official npm package (@ai-sdk/xai is Vercel's)
+       "meta": ["llama-api-client", "llama-stack-client"]}
 # Default branch prefixes of cloud coding agents: (lab, prefix, metric). Meta has no verified prefix.
 # Cursor (owned by SpaceXAI since Aug 2026) is a separate series, so the xAI line stays visible but labeled.
 PR_SERIES = [("anthropic", "claude/", "agent_prs"), ("openai", "codex/", "agent_prs"), ("xai", "cursor/", "agent_prs_cursor")]
@@ -69,27 +74,29 @@ PRODUCTS = {  # key -> (name, lab, Hacker News phrase, YouTube query, words the 
     # OpenAI ships ChatGPT and Codex as one product family, so they are one row here
     "codex": ("ChatGPT + Codex", "openai", ["ChatGPT", "OpenAI Codex", "Codex CLI"], ["ChatGPT", "OpenAI Codex", "Codex CLI"], ("chatgpt", "codex")),
     "metaai": ("Meta AI app", "meta", ["Meta AI"], ["Meta AI"], ("meta ai",)),
-    "muse": ("Meta Muse models", "meta", ["Muse Spark", "Muse Wonder"], None, ()),
+    "muse": ("Meta Muse models", "meta", ["Muse Spark", "Muse Wonder"], ["Muse Spark", "Muse Wonder"], ("muse spark", "muse wonder")),
 }
-# Every name a lab is known by. News uses a GDELT OR query; Hacker News and YouTube count each name and
-# remove duplicates; Wikipedia sums the listed articles. Cursor (owned by SpaceXAI since Aug 2026) is NOT counted in xAI.
+# Every name a lab is known by. Same rule for all four labs: company name, flagship products, model families and
+# coding agents. No people, and no generic word that means something else too. News uses a GDELT OR query; Hacker News
+# and YouTube count each name and remove duplicates; Wikipedia sums the listed articles.
+# Cursor (owned by SpaceXAI since Aug 2026) is NOT counted in xAI.
 ALIASES = {
-    "anthropic": {"news": '(Anthropic OR "Claude Code" OR "Claude Opus" OR "Claude Sonnet")',
-                  "hn": ["Anthropic", "Claude Code", "Claude Opus", "Claude Sonnet"],
-                  "yt": ["Anthropic", "Claude Code", "Claude Opus"],
-                  "wiki": ["Anthropic", "Claude_(AI)"]},
-    "openai": {"news": '(OpenAI OR ChatGPT OR "OpenAI Codex" OR "Sam Altman")',
-               "hn": ["OpenAI", "ChatGPT", "OpenAI Codex", "Sam Altman"],
-               "yt": ["OpenAI", "ChatGPT", "OpenAI Codex"],
-               "wiki": ["OpenAI", "ChatGPT", "OpenAI_Codex"]},
-    "xai": {"news": '(Grok OR SpaceXAI OR "SpaceX AI" OR "Grok Bot")',
-            "hn": ["Grok", "SpaceXAI", "SpaceX AI", "xAI"],
-            "yt": ["Grok", "SpaceXAI", "Grok Bot"],
-            "wiki": ["SpaceXAI", "XAI_(company)", "Grok_(chatbot)"]},
-    "meta": {"news": '("Meta AI" OR "Muse Spark" OR "Muse Wonder" OR "Meta Superintelligence" OR "Meta Llama")',
-             "hn": ["Meta AI", "Muse Spark", "Muse Wonder", "Meta Superintelligence", "Meta Llama"],
-             "yt": ["Meta AI", "Muse Spark", "Llama 4", "Meta Superintelligence"],
-             "wiki": ["Meta_AI", "Llama_(language_model)", "Meta_Superintelligence_Labs", "Muse_Spark"]},
+    "anthropic": {"news": '(Anthropic OR "Claude Code" OR "Claude Opus" OR "Claude Sonnet" OR "Claude Haiku" OR "Claude AI")',
+                  "hn": ["Anthropic", "Claude Code", "Claude Opus", "Claude Sonnet", "Claude Haiku", "Claude AI"],
+                  "yt": ["Anthropic", "Claude AI", "Claude Code", "Claude Opus"],
+                  "wiki": ["Anthropic", "Claude_(AI)", "Claude_(language_model)", "Claude_Code"]},
+    "openai": {"news": '(OpenAI OR ChatGPT OR "OpenAI Codex" OR "Codex CLI" OR "GPT-5" OR "gpt-oss")',
+               "hn": ["OpenAI", "ChatGPT", "OpenAI Codex", "Codex CLI", "GPT-5", "gpt-oss", "ChatGPT Atlas", "Sora"],
+               "yt": ["OpenAI", "ChatGPT", "OpenAI Codex", "GPT-5"],
+               "wiki": ["OpenAI", "ChatGPT", "OpenAI_Codex", "GPT-5", "Sora_(text-to-video_model)"]},
+    "xai": {"news": '(Grok OR SpaceXAI OR "SpaceX AI" OR "Grok Bot" OR Grokipedia)',
+            "hn": ["Grok", "SpaceXAI", "SpaceX AI", "xAI", "Grokipedia"],
+            "yt": ["Grok", "SpaceXAI", "Grok Bot", "Grokipedia"],
+            "wiki": ["SpaceXAI", "XAI_(company)", "Grok_(chatbot)", "Grokipedia"]},
+    "meta": {"news": '("Meta AI" OR "Muse Spark" OR "Muse Wonder" OR "Meta Muse" OR "Meta Superintelligence" OR "Meta Llama" OR "Llama 4")',
+             "hn": ["Meta AI", "Muse Spark", "Muse Wonder", "Meta Muse", "Meta Superintelligence", "Meta Llama", "Llama 4"],
+             "yt": ["Meta AI", "Muse Spark", "Muse Wonder", "Meta Llama", "Llama 4", "Meta Superintelligence"],
+             "wiki": ["Meta_AI", "Llama_(language_model)", "Meta_Superintelligence_Labs", "Muse_(language_model)", "Muse_(AI_agent)", "Muse_Spark", "Muse_Wonder"]},
 }
 # Reddit communities where each lab's users gather. Activity is counted as posts per week (Arctic Shift archive).
 REDDIT = {"anthropic": ["ClaudeAI", "ClaudeCode"], "openai": ["OpenAI", "ChatGPT"], "xai": ["grok", "GrokBot"], "meta": ["MetaAI"]}
@@ -185,13 +192,29 @@ def week_windows(n):
 
 
 # ---------- developer usage ----------
+def pkg_migrate(con):
+    """One time: the package lists grew from one package per lab to all official packages, so old sums are not comparable."""
+    if kv_get(con, "pkg_family_v2"):
+        return
+    con.execute("DELETE FROM metrics WHERE metric IN ('pypi', 'npm')")
+    kv_put(con, "pkg_family_v2", True)
+    con.commit()
+    log("package totals reset to the all-official-packages lists")
+
+
 def collect_pypi(con, windows):
-    for co, pkg in PYPI.items():
+    pkg_migrate(con)
+    for co, pkgs in PYPI.items():
         if all(have(con, w[1].isoformat(), co, "pypi") for w in windows[1:]) and have(con, windows[0][1].isoformat(), co, "pypi"):
             continue
         try:
-            rows = http_json(f"https://pypistats.org/api/packages/{pkg}/overall?mirrors=false")["data"]
-            daily = {r["date"]: r["downloads"] for r in rows if r["category"] == "without_mirrors"}
+            daily = {}
+            for pkg in pkgs:
+                rows = http_json(f"https://pypistats.org/api/packages/{pkg}/overall?mirrors=false")["data"]
+                for r in rows:
+                    if r["category"] == "without_mirrors":
+                        daily[r["date"]] = daily.get(r["date"], 0) + r["downloads"]
+                time.sleep(1.5)
             for s, e in windows:
                 put(con, e.isoformat(), co, "pypi", sum(v for k, v in daily.items() if s.isoformat() <= k <= e.isoformat()))
             log(f"pypi {co} ok")
@@ -202,10 +225,15 @@ def collect_pypi(con, windows):
 
 def collect_npm(con, windows):
     start, end = windows[-1][0], windows[0][1]
-    for co, pkg in NPM.items():
+    for co, pkgs in NPM.items():
+        if not pkgs:
+            continue
         try:
-            rows = http_json(f"https://api.npmjs.org/downloads/range/{start}:{end}/{pkg}")["downloads"]
-            daily = {r["day"]: r["downloads"] for r in rows}
+            daily = {}
+            for pkg in pkgs:
+                for r in http_json(f"https://api.npmjs.org/downloads/range/{start}:{end}/{pkg}")["downloads"]:
+                    daily[r["day"]] = daily.get(r["day"], 0) + r["downloads"]
+                time.sleep(1)
             for s, e in windows:
                 put(con, e.isoformat(), co, "npm", sum(v for k, v in daily.items() if s.isoformat() <= k <= e.isoformat()))
             log(f"npm {co} ok")
@@ -408,7 +436,7 @@ def yt_unit(queries, musts, win_end, length, key):
         return []
     v = http_json(f"https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id={','.join(ids)}&key={key}")["items"]
     return [[x["id"], int(x["statistics"].get("viewCount", 0)), x["snippet"]["title"], x["snippet"]["channelTitle"]]
-            for x in v if any(m in x["snippet"]["title"].lower() for m in musts)]
+            for x in v if any(m in x["snippet"]["title"].lower().replace("grokking", "") for m in musts)]  # "grokking" is not Grok
 
 
 def yt_collect(con, key, end, targets):
@@ -544,10 +572,10 @@ def collect_attention(con):
     out["yt_window"] = f"{yt_end - timedelta(days=6)} to {yt_end}"
     yt_cache = {}
     if key and "yt" in parts:
-        targets = {f"prod:{pk}": (pv[3], pv[4]) for pk, pv in PRODUCTS.items() if pv[3]}
-        # One search per name. One OR search returns the top 50 matches of all names together, and most of them
-        # do not have a name in the title, so a lab total would be far too low (Meta showed 32 views).
-        targets.update({f"lab:{lab}:{n}": ([n], [n.lower()]) for lab, al in ALIASES.items() for n in al["yt"]})
+        # One search per name, shared by the lab rows and the product rows. One OR search returns the top 50 matches
+        # of all names together, and most of them do not have a name in the title, so totals would be far too low.
+        names = {n for al in ALIASES.values() for n in al["yt"]} | {n for pv in PRODUCTS.values() if pv[3] for n in pv[3]}
+        targets = {f"n:{n}": ([n], [n.lower()]) for n in sorted(names)}
         yt_cache = yt_collect(con, key, yt_end, targets)
 
     def part(row, old, part_name, field, fn):
@@ -565,7 +593,7 @@ def collect_attention(con):
         row, old = {"name": name, "lab": lab}, (prev.get("products") or {}).get(pk, {})
         part(row, old, "hn", "hn", lambda: [hn_union(hn_q, cur_a, cur_b), hn_union(hn_q, pri_a, pri_b)])
         if key and yt_q:
-            part(row, old, "yt", "yt", lambda: yt_row(yt_cache, f"prod:{pk}", yt_end))
+            part(row, old, "yt", "yt", lambda: yt_row(yt_cache, [f"n:{n}" for n in pv[3]], yt_end))
         out["products"][pk] = row
     for lab, al in ALIASES.items():
         row, old = {}, (prev.get("labs") or {}).get(lab, {})
@@ -573,7 +601,7 @@ def collect_attention(con):
                                                  sum(wiki_views(t, end - timedelta(days=13), end - timedelta(days=7)) for t in al["wiki"])])
         part(row, old, "hn", "hn", lambda: [hn_union(al["hn"], cur_a, cur_b), hn_union(al["hn"], pri_a, pri_b)])
         if key:
-            part(row, old, "yt", "yt", lambda: yt_row(yt_cache, [f"lab:{lab}:{n}" for n in al["yt"]], yt_end))
+            part(row, old, "yt", "yt", lambda: yt_row(yt_cache, [f"n:{n}" for n in al["yt"]], yt_end))
         def reddit():
             subs = {r: [reddit_posts(r, end - timedelta(days=6), end), reddit_posts(r, end - timedelta(days=13), end - timedelta(days=7))] for r in REDDIT[lab]}
             row["reddit_subs"] = subs
