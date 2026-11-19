@@ -36,8 +36,23 @@ COLORS = {"anthropic": "#D97757", "openai": "#10A37F", "xai": "#E5B93C", "meta":
 PYPI = {"anthropic": ["anthropic", "claude-agent-sdk", "claude-code-sdk"], "openai": ["openai", "openai-agents", "openai-codex"], "xai": ["xai-sdk"],
         "meta": ["llama-api-client", "llama-models", "llama-stack-client", "llama-stack"]}
 NPM = {"anthropic": ["@anthropic-ai/sdk", "@anthropic-ai/claude-code", "@anthropic-ai/claude-agent-sdk"],
-       "openai": ["openai", "@openai/codex", "@openai/agents", "@openai/codex-sdk"], "xai": [],  # xAI has no official npm package (@ai-sdk/xai is Vercel's)
+       "openai": ["openai", "@openai/codex", "@openai/agents", "@openai/codex-sdk"],
+       "xai": ["@xai-official/grok"],  # Grok Build CLI, published by x.ai (@ai-sdk/xai is Vercel's, not counted); xai-sdk is on PyPI
        "meta": ["llama-api-client", "llama-stack-client"]}
+# Agent platforms. Two tiers, because a coding agent and a general computer agent are not the same product.
+# key -> (name, lab, tier, Hacker News phrases, YouTube names, npm packages of the CLI). Meta's Muse Code has no npm or PyPI package.
+# Branch-prefix pull requests are shown for claude/ and codex/ only: grok/ and muse/ branches are concentrated in a few accounts.
+AGENTS = {
+    "ag_claude_code": ("Claude Code", "anthropic", "coding", ["Claude Code"], ["Claude Code"], ["@anthropic-ai/claude-code"]),
+    "ag_codex": ("Codex", "openai", "coding", ["Codex"], ["Codex"], ["@openai/codex"]),
+    "ag_grok_build": ("Grok Build", "xai", "coding", ["Grok Build"], ["Grok Build"], ["@xai-official/grok"]),
+    "ag_muse_code": ("Muse Code", "meta", "coding", ["Muse Code"], ["Muse Code"], []),
+    "ag_cowork": ("Claude Cowork", "anthropic", "general", ["Claude Cowork"], ["Claude Cowork"], []),
+    "ag_chatgpt_work": ("ChatGPT Work", "openai", "general", ["ChatGPT Work"], ["ChatGPT Work"], []),
+    "ag_grok_bot": ("Grok Bot", "xai", "general", ["Grok Bot", "GrokBot"], ["Grok Bot"], []),
+    "ag_muse": ("Meta Muse agent", "meta", "general", ["Meta Muse"], ["Meta Muse"], []),
+}
+AGENT_PR_LAB = {"ag_claude_code": "anthropic", "ag_codex": "openai"}  # lab series whose branch prefix is this agent's own
 # Default branch prefixes of cloud coding agents: (lab, prefix, metric). Meta has no verified prefix.
 # Cursor (owned by SpaceXAI since Aug 2026) is a separate series, so the xAI line stays visible but labeled.
 PR_SERIES = [("anthropic", "claude/", "agent_prs"), ("openai", "codex/", "agent_prs"), ("xai", "cursor/", "agent_prs_cursor")]
@@ -70,34 +85,35 @@ APPS = {  # key -> (App Store id, lab, name)
 }
 PRODUCTS = {  # key -> (name, lab, Hacker News phrase, YouTube query, words the video title must contain)
     "grokbot": ("Grok Bot", "xai", ["Grok Bot", "GrokBot"], ["Grok Bot", "GrokBot"], ("grok bot", "grokbot")),
-    "claudecode": ("Claude + Claude Code", "anthropic", ["Claude"], ["Claude AI", "Claude Code", "Claude Opus"], ()),
+    "claudecode": ("Claude + Claude Code", "anthropic", ["Claude"], ["Claude AI", "Claude Code", "Claude Opus", "Claude Fable"], ()),
     # OpenAI ships ChatGPT and Codex as one product family, so they are one row here
-    "codex": ("ChatGPT + Codex", "openai", ["ChatGPT", "Codex"], ["ChatGPT", "OpenAI Codex", "Codex CLI"], ()),
+    "codex": ("ChatGPT + Codex", "openai", ["ChatGPT", "Codex"], ["ChatGPT", "Codex"], ()),
     "metaai": ("Meta AI app", "meta", ["Meta AI"], ["Meta AI"], ("meta ai",)),
-    "muse": ("Meta Muse models", "meta", ["Muse Spark", "Muse Wonder"], ["Muse Spark", "Muse Wonder"], ("muse spark", "muse wonder")),
+    "muse": ("Meta Muse models", "meta", ["Muse Spark", "Muse Wonder", "Muse Ember"], ["Muse Spark", "Muse Wonder"], ("muse spark", "muse wonder")),
 }
 # Every name a lab is known by. Same rule for all four labs: company name, flagship products, model families and
 # coding agents. No people, and no generic word that means something else too. News uses a GDELT OR query; Hacker News
 # and YouTube count each name and remove duplicates; Wikipedia sums the listed articles.
 # Cursor (owned by SpaceXAI since Aug 2026) is NOT counted in xAI.
 ALIASES = {
-    "anthropic": {"news": '(Anthropic OR "Claude Code" OR "Claude Opus" OR "Claude Sonnet" OR "Claude Haiku" OR "Claude AI")',
-                  "hn": ["Anthropic", "Claude"],
-                  "yt": ["Anthropic", "Claude AI", "Claude Code", "Claude Opus", "Claude Sonnet"],
-                  "wiki": ["Anthropic", "Claude_(AI)", "Claude_(language_model)", "Claude_Code"]},
-    "openai": {"news": '(OpenAI OR ChatGPT OR "OpenAI Codex" OR "Codex CLI" OR "GPT-5" OR "gpt-oss")',
-               "hn": ["OpenAI", "ChatGPT", "Codex", "GPT-5", "gpt-oss", "Sora"],
-               "yt": ["OpenAI", "ChatGPT", "OpenAI Codex", "GPT-5"],
-               "wiki": ["OpenAI", "ChatGPT", "OpenAI_Codex", "GPT-5", "Sora_(text-to-video_model)"]},
-    "xai": {"news": '(Grok OR SpaceXAI OR "SpaceX AI" OR "Grok Bot" OR Grokipedia)',
+    "anthropic": {"news": '(Anthropic OR "Claude Code" OR "Claude Opus" OR "Claude Sonnet" OR "Claude Haiku" OR "Claude AI" OR "Claude Fable" OR "Claude Mythos" OR "Claude Cowork")',
+                  "hn": ["Anthropic", "Claude", "Fable", "Mythos"],
+                  "yt": ["Anthropic", "Claude AI", "Claude Code", "Claude Opus", "Claude Sonnet", "Claude Fable", "Claude Mythos", "Claude Cowork"],
+                  "wiki": ["Anthropic", "Claude_(AI)", "Claude_(language_model)", "Claude_Code", "Claude_Fable", "Claude_Mythos", "Claude_Cowork"]},
+    "openai": {"news": '(OpenAI OR ChatGPT OR "OpenAI Codex" OR "Codex CLI" OR "GPT-5" OR "GPT-6" OR "gpt-oss")',
+               "hn": ["OpenAI", "ChatGPT", "Codex", "GPT-5", "GPT-6", "gpt-oss"],
+               "yt": ["OpenAI", "ChatGPT", "Codex", "GPT-5", "GPT-6", "ChatGPT Work"],
+               "wiki": ["OpenAI", "ChatGPT", "OpenAI_Codex", "GPT-5", "GPT-6", "GPT-6_Astra"]},
+    "xai": {"news": '(Grok OR SpaceXAI OR "SpaceX AI" OR "Grok Bot" OR "Grok Build" OR "Grok Imagine" OR Grokipedia)',
             "hn": ["Grok", "SpaceXAI", "SpaceX AI", "xAI", "Grokipedia"],
-            "yt": ["Grok", "SpaceXAI", "Grok Bot", "Grokipedia"],
-            "wiki": ["SpaceXAI", "XAI_(company)", "Grok_(chatbot)", "Grokipedia"]},
-    "meta": {"news": '("Meta AI" OR "Muse Spark" OR "Muse Wonder" OR "Meta Muse" OR "Meta Superintelligence" OR "Meta Llama" OR "Llama 4")',
-             "hn": ["Meta AI", "Muse Spark", "Muse Wonder", "Meta Muse", "Meta Superintelligence", "Meta Llama", "Llama 3", "Llama 4"],
-             "yt": ["Meta AI", "Muse Spark", "Muse Wonder", "Meta Llama", "Llama 4", "Meta Superintelligence"],
-             "wiki": ["Meta_AI", "Llama_(language_model)", "Meta_Superintelligence_Labs", "Muse_(language_model)", "Muse_(AI_agent)", "Muse_Spark", "Muse_Wonder"]},
+            "yt": ["Grok", "SpaceXAI", "Grok Bot", "Grokipedia", "Grok Build", "Grok Imagine"],
+            "wiki": ["SpaceXAI", "XAI_(company)", "Grok_(chatbot)", "Grokipedia", "Grok_Build"]},
+    "meta": {"news": '("Meta AI" OR "Muse Spark" OR "Muse Wonder" OR "Muse Code" OR "Muse Charm" OR "Meta Muse" OR "Meta Superintelligence" OR "Meta Llama" OR "Llama 4")',
+             "hn": ["Meta AI", "Muse Spark", "Muse Wonder", "Muse Code", "Muse Charm", "Muse Ember", "Meta Muse", "Meta Superintelligence", "Meta Llama", "Llama 3", "Llama 4"],
+             "yt": ["Meta AI", "Muse Spark", "Muse Wonder", "Muse Code", "Muse Charm", "Meta Muse", "Meta Llama", "Llama 4", "Meta Superintelligence"],
+             "wiki": ["Meta_AI", "Llama_(language_model)", "Meta_Superintelligence_Labs", "Muse_(language_model)", "Muse_(AI_agent)", "Muse_Spark", "Muse_Wonder", "Muse_Code"]},
 }
+YT_EXCLUDE = {"Codex": ("warhammer", "40k")}  # bare "Codex" is also a Warhammer 40k book; titles with these words do not count
 # Reddit communities where each lab's users gather. Activity is counted as posts per week (Arctic Shift archive).
 REDDIT = {"anthropic": ["ClaudeAI", "ClaudeCode", "claude", "Anthropic"], "openai": ["OpenAI", "ChatGPT", "codex", "ChatGPTPro"],
           "xai": ["grok", "GrokBot"], "meta": ["MetaAI"]}
@@ -227,7 +243,9 @@ def collect_pypi(con, windows):
 
 def collect_npm(con, windows):
     start, end = windows[-1][0], windows[0][1]
-    for co, pkgs in NPM.items():
+    allpk = dict(NPM)
+    allpk.update({k: v[5] for k, v in AGENTS.items()})  # each coding-agent CLI on its own, so the agent table is not a lab total
+    for co, pkgs in allpk.items():
         if not pkgs:
             continue
         try:
@@ -244,22 +262,23 @@ def collect_npm(con, windows):
         time.sleep(1)
 
 
-# Open-weight models on Hugging Face. Downloads over the last 30 days, text-generation models of each lab's own organisation.
-# Anthropic publishes no open weights, so it has no number (shown as n/a, not zero). Other model types (OpenAI's CLIP and
-# Whisper, Meta's vision models) are left out so that every lab is measured on language models only.
-HF_ORGS = {"anthropic": [], "openai": ["openai"], "xai": ["xai-org"], "meta": ["meta-llama"]}
+# Open-weight models on Hugging Face, by model family. Downloads over the last 30 days and likes, summed over the models of each
+# lab's own organisation whose name has the family word. A tag filter is not used: it dropped Grok 2, which has no tag.
+# Not counted, for every lab alike: copies and quantised versions uploaded by other people, fine-tunes, and the lab's non-language
+# models (OpenAI's CLIP and Whisper). Anthropic publishes no open weights, so it has no number (n/a, not zero).
+HF_FAMILIES = {"openai": ("openai", "gpt-oss"), "xai": ("xai-org", "grok"), "meta": ("meta-llama", "llama")}
 
 
 def collect_hf(con, today):
     try:
-        for lab, orgs in HF_ORGS.items():
-            if not orgs:
-                continue
-            total = 0
-            for org in orgs:
-                ms = http_json(f"https://huggingface.co/api/models?author={org}&filter=text-generation&sort=downloads&direction=-1&limit=100")
-                total += sum(int(m.get("downloads") or 0) for m in ms)
-            put(con, today, lab, "hf_downloads", total)
+        if not kv_get(con, "hf_family_v2"):  # the older rows used another rule (text-generation tag), so they cannot be compared
+            con.execute("DELETE FROM metrics WHERE metric IN ('hf_downloads','hf_likes')")
+            kv_put(con, "hf_family_v2", 1)
+        for lab, (org, word) in HF_FAMILIES.items():
+            ms = http_json(f"https://huggingface.co/api/models?author={org}&sort=downloads&direction=-1&limit=100")
+            ms = [m for m in ms if word in m["id"].split("/", 1)[-1].lower()]
+            put(con, today, lab, "hf_downloads", sum(int(m.get("downloads") or 0) for m in ms))
+            put(con, today, lab, "hf_likes", sum(int(m.get("likes") or 0) for m in ms))
         log("hf ok")
     except Exception as ex:
         log(f"hf FAILED: {ex}")
@@ -446,76 +465,105 @@ def iso(d):
     return d.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def yt_unit(queries, musts, win_end, length, key):
-    """One YouTube search for one 7-day window (ending on win_end, UTC) and one length class.
-    Returns the videos whose title has a name: [[id, views, title, channel], ...]. Costs 1 search + 1 cheap lookup.
-    medium = 4-20 min, long = 20+ min, so Shorts are never counted."""
-    a = datetime.combine(win_end - timedelta(days=6), datetime.min.time(), timezone.utc)
-    b = datetime.combine(win_end + timedelta(days=1), datetime.min.time(), timezone.utc)
-    q = "|".join(chr(34) + x + chr(34) for x in queries)
+YT_MAX_SEARCHES = 85  # per run. YouTube allows about 100 searches a day, and the title and view lookups need some quota too
+
+
+def yt_search_day(name, day, length, key):
+    """One YouTube search: videos with this name published on one UTC day, one length class, most-viewed first (top 50).
+    Returns [[id, title, channel], ...] for the videos whose title has the name. medium = 4-20 min, long = 20+ min, so Shorts never count."""
+    a = datetime.combine(day, datetime.min.time(), timezone.utc)
+    b = a + timedelta(days=1)
+    excl = YT_EXCLUDE.get(name, ())
+    q = chr(34) + name + chr(34) + "".join(" -" + w for w in excl)
     s = http_json("https://www.googleapis.com/youtube/v3/search?part=id&type=video&maxResults=50&order=viewCount"
                   f"&videoDuration={length}&q={urllib.parse.quote(q)}&publishedAfter={iso(a)}&publishedBefore={iso(b)}&key={key}")
     ids = [x["id"]["videoId"] for x in s.get("items", [])]
     if not ids:
         return []
-    v = http_json(f"https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id={','.join(ids)}&key={key}")["items"]
-    return [[x["id"], int(x["statistics"].get("viewCount", 0)), x["snippet"]["title"], x["snippet"]["channelTitle"]]
-            for x in v if any(m in x["snippet"]["title"].lower().replace("grokking", "") for m in musts)]  # "grokking" is not Grok
+    v = http_json(f"https://www.googleapis.com/youtube/v3/videos?part=snippet&id={','.join(ids)}&key={key}")["items"]
+    out = []
+    for x in v:
+        t = x["snippet"]["title"]
+        tl = t.lower().replace("grokking", "")  # "grokking" is not Grok
+        if name.lower() in tl and not any(w in tl for w in excl):
+            out.append([x["id"], t, x["snippet"]["channelTitle"]])
+    return out
 
 
-def yt_collect(con, key, end, targets):
-    """Resumable YouTube collection. The Google project has a small daily search cap, so each search result is
-    saved on its own. A run stops at the first quota error and the next run continues. Order: this week for every
-    target first, then the week before. A week that was collected earlier is reused, never searched twice."""
-    cache = kv_get(con, "yt_units", {}) or {}
-    todo = [(tid, w) for w in (end, end - timedelta(days=7)) for tid in targets]
-    done = tried = 0
-    for tid, w in todo:
-        queries, musts = targets[tid]
-        for length in ("medium", "long"):
-            k = f"{tid}|{w.isoformat()}|{length}"
-            if k in cache:
-                continue
-            tried += 1
-            try:
-                cache[k] = yt_unit(queries, musts, w, length, key)
-                kv_put(con, "yt_units", cache)  # save after every search, so a stop loses nothing
-                con.commit()
-                done += 1
-            except RuntimeError as ex:
-                if "quota exhausted" in str(ex):
-                    log(f"yt: quota used up after {done} new searches; the next run continues")
-                    return cache
-                log(f"yt {k} FAILED: {str(ex)[:100]}")
-    for k in [k for k in cache if k.split("|")[0] not in targets or datetime.fromisoformat(k.split("|")[1]).date() < end - timedelta(days=28)]:
-        del cache[k]  # keep four weeks of saved results
-    kv_put(con, "yt_units", cache)
-    log(f"yt: {done} new searches, {len(todo) * 2 - tried} already saved")
-    return cache
+def yt_collect(con, key, end, names):
+    """Rolling 7-day YouTube window that ends yesterday. Saved per name, per day and per length class, so each day only the
+    newest day is new. Views are refreshed every run for every video in the window. The search quota is small, so a run stops
+    at the first quota error and the next run continues. The window is shown only when every name has all 7 days (state['ready'])."""
+    con.execute("DELETE FROM kv WHERE key='yt_units'")  # the older weekly cache is not used any more
+    st = kv_get(con, "yt2", {}) or {}
+    days, views = st.setdefault("days", {}), st.setdefault("views", {})
+    window = [end - timedelta(days=i) for i in range(7)]
+    new = 0
+    stopped = False
+    for d in window:  # newest day first, for every name
+        for n in names:
+            for ln in ("medium", "long"):
+                k = f"{n}|{d.isoformat()}|{ln}"
+                if k in days or stopped:
+                    continue
+                if new >= YT_MAX_SEARCHES:
+                    stopped = True
+                    log(f"yt: {YT_MAX_SEARCHES} searches done for this run; the next run continues")
+                    continue
+                try:
+                    days[k] = yt_search_day(n, d, ln, key)
+                    new += 1
+                    kv_put(con, "yt2", st)  # save after every search, so a stop loses nothing
+                    con.commit()
+                except RuntimeError as ex:
+                    if "quota exhausted" in str(ex):
+                        stopped = True
+                        log(f"yt: quota used up after {new} new searches; the next run continues")
+                    else:
+                        log(f"yt {k} FAILED: {str(ex)[:100]}")
+    first = window[-1].isoformat()
+    for k in [k for k in days if k.split("|")[1] < (window[-1] - timedelta(days=1)).isoformat() or k.split("|")[0] not in names]:
+        del days[k]  # keep the window and one day before it
+    ids = sorted({v[0] for k, vs in days.items() if k.split("|")[1] >= first for v in vs})
+    for i in range(0, len(ids), 50):  # refresh views: 1 quota unit per 50 videos
+        try:
+            for x in http_json(f"https://www.googleapis.com/youtube/v3/videos?part=statistics&id={','.join(ids[i:i + 50])}&key={key}")["items"]:
+                views[x["id"]] = int(x["statistics"].get("viewCount", 0))
+        except RuntimeError as ex:
+            log(f"yt views FAILED: {str(ex)[:100]}")
+            break
+    keep = {v[0] for vs in days.values() for v in vs}
+    for vid in [v for v in views if v not in keep]:
+        del views[vid]
+    st["ready"] = all(f"{n}|{d.isoformat()}|{ln}" in days for n in names for d in window for ln in ("medium", "long"))
+    st["end"] = end.isoformat()
+    kv_put(con, "yt2", st)
+    log(f"yt: {new} new searches, window {'complete' if st['ready'] else 'still filling'}, {len(ids)} videos refreshed")
+    return st
 
 
-def yt_row(cache, tids, end):
-    """Build the dashboard row for one target from saved searches. Weeks are fixed (Monday to Sunday), so last week is reused."""
-    def week(w):
-        tl = [tids] if isinstance(tids, str) else tids
-        ks = [f"{t}|{w.isoformat()}|{ln}" for t in tl for ln in ("medium", "long")]
-        if not all(k in cache for k in ks):
-            return None
-        seen = {}
-        for k in ks:
-            for vid, views, title, ch in cache[k]:
-                seen[vid] = (views, title, ch)
-        return sorted(seen.values(), reverse=True)
-    for i in (0, 7):  # this week, or last week when this week is not finished yet
-        w = end - timedelta(days=i)
-        cur = week(w)
-        if cur is None:
-            continue
-        pri = week(w - timedelta(days=7))
-        top = {"views": cur[0][0], "title": cur[0][1], "channel": cur[0][2]} if cur else None
-        return {"videos": [len(cur), len(pri) if pri is not None else None], "views": [sum(r[0] for r in cur), sum(r[0] for r in pri) if pri is not None else None],
-                "top": top, "asof": w.isoformat()}
-    return None
+def yt_row(st, hist, rowkey, names, today):
+    """Dashboard row for one lab, product or agent: videos published in the 7 days to yesterday that have any of the names in the
+    title, duplicates once, with their views as of today. The comparison is the same row as it was 7 days ago, so both numbers
+    have the same video ages. None until the window is complete."""
+    if not st.get("ready"):
+        return None
+    end = datetime.fromisoformat(st["end"]).date()
+    seen = {}
+    for n in names:
+        for i in range(7):
+            for ln in ("medium", "long"):
+                for vid, title, ch in st["days"][f"{n}|{(end - timedelta(days=i)).isoformat()}|{ln}"]:
+                    seen[vid] = (st["views"].get(vid, 0), title, ch)
+    cur = sorted(seen.values(), reverse=True)
+    h = hist.setdefault(rowkey, {})
+    h[today.isoformat()] = [len(cur), sum(r[0] for r in cur)]
+    for d in [d for d in h if (today - datetime.fromisoformat(d).date()).days > 40]:
+        del h[d]
+    prior = next((h[d] for d in ((today - timedelta(days=b)).isoformat() for b in (7, 6, 8)) if d in h), None)
+    top = {"views": cur[0][0], "title": cur[0][1], "channel": cur[0][2]} if cur else None
+    return {"videos": [len(cur), prior[0] if prior else None], "views": [sum(r[0] for r in cur), prior[1] if prior else None],
+            "top": top, "asof": end.isoformat()}
 
 
 def hn_union(phrases, a, b):
@@ -592,15 +640,17 @@ def collect_attention(con):
     prev = kv_get(con, "attention") or {}
     if not key:
         log("NOTE: YOUTUBE_API_KEY not set, skipping YouTube")
-    yt_end = end - timedelta(days=(end.weekday() - 6) % 7)  # newest finished Sunday: YouTube uses fixed weeks so searches are reused
-    out["yt_window"] = f"{yt_end - timedelta(days=6)} to {yt_end}"
-    yt_cache = {}
+    today = utc_today()
+    out["yt_window"] = prev.get("yt_window")  # replaced below when the new rolling window is complete
+    yt_state, yt_hist = {}, kv_get(con, "yt_hist", {}) or {}
     if key and "yt" in parts:
-        # One search per name, shared by the lab rows and the product rows. One OR search returns the top 50 matches
-        # of all names together, and most of them do not have a name in the title, so totals would be far too low.
-        names = {n for al in ALIASES.values() for n in al["yt"]} | {n for pv in PRODUCTS.values() if pv[3] for n in pv[3]}
-        targets = {f"n:{n}": ([n], [n.lower()]) for n in sorted(names)}
-        yt_cache = yt_collect(con, key, yt_end, targets)
+        # One search per name per day, shared by the lab rows, the product rows and the agent rows. One OR search returns the top 50
+        # matches of all names together, and most of them do not have a name in the title, so totals would be far too low.
+        names = sorted({n for al in ALIASES.values() for n in al["yt"]} | {n for pv in PRODUCTS.values() if pv[3] for n in pv[3]}
+                       | {n for ag in AGENTS.values() for n in ag[4]})
+        yt_state = yt_collect(con, key, end, names)
+        if yt_state.get("ready"):
+            out["yt_window"] = f"{end - timedelta(days=6)} to {end}"
 
     def part(row, old, part_name, field, fn):
         """Collect one field, or keep the stored value when this part is not being re-collected."""
@@ -622,15 +672,22 @@ def collect_attention(con):
         row, old = {"name": name, "lab": lab}, (prev.get("products") or {}).get(pk, {})
         part(row, old, "hn", "hn", lambda: [hn_union(hn_q, cur_a, cur_b), hn_union(hn_q, pri_a, pri_b)])
         if key and yt_q:
-            part(row, old, "yt", "yt", lambda: yt_row(yt_cache, [f"n:{n}" for n in yt_q], yt_end))
+            part(row, old, "yt", "yt", lambda: yt_row(yt_state, yt_hist, f"prod:{pk}", yt_q, today))
         out["products"][pk] = row
+    out["agents"] = {}
+    for ak, (aname, alab, tier, ahn, ayt, _pk) in AGENTS.items():
+        row, old = {"name": aname, "lab": alab, "tier": tier}, (prev.get("agents") or {}).get(ak, {})
+        part(row, old, "hn", "hn", lambda: [hn_union(ahn, cur_a, cur_b), hn_union(ahn, pri_a, pri_b)])
+        if key:
+            part(row, old, "yt", "yt", lambda: yt_row(yt_state, yt_hist, f"ag:{ak}", ayt, today))
+        out["agents"][ak] = row
     for lab, al in ALIASES.items():
         row, old = {}, (prev.get("labs") or {}).get(lab, {})
         part(row, old, "wiki", "wiki", lambda: [sum(wiki_views(t, end - timedelta(days=6), end) for t in al["wiki"]),
                                                  sum(wiki_views(t, end - timedelta(days=13), end - timedelta(days=7)) for t in al["wiki"])])
         part(row, old, "hn", "hn", lambda: [hn_union(al["hn"], cur_a, cur_b), hn_union(al["hn"], pri_a, pri_b)])
         if key:
-            part(row, old, "yt", "yt", lambda: yt_row(yt_cache, [f"n:{n}" for n in al["yt"]], yt_end))
+            part(row, old, "yt", "yt", lambda: yt_row(yt_state, yt_hist, f"lab:{lab}", al["yt"], today))
         def reddit():
             subs = {r: [reddit_posts(r, end - timedelta(days=6), end), reddit_posts(r, end - timedelta(days=13), end - timedelta(days=7))] for r in REDDIT[lab]}
             row["reddit_subs"] = subs
@@ -660,6 +717,7 @@ def collect_attention(con):
                 row["news_asof"] = old["news_asof"]
         out["labs"][lab] = row
     kv_put(con, "attention", out)
+    kv_put(con, "yt_hist", yt_hist)
     log("attention ok")
 
 
@@ -706,6 +764,7 @@ def name_lists():
     news = lambda al: [x.strip().strip('"') for x in re.sub(r"[()]", "", al["news"]).split(" OR ")]
     return {"yt": join(lambda al: al["yt"]), "hn": join(lambda al: al["hn"]), "news": join(news),
             "wiki": join(lambda al: [w.replace("_", " ") for w in al["wiki"]]),
+            "agents": " | ".join(a[0] if a[3] == [a[0]] else f"{a[0]} ({', '.join(a[3])})" for a in AGENTS.values()),
             "reddit": " | ".join(", ".join("r/" + r for r in REDDIT[lab]) for lab in ALIASES)}
 
 
@@ -714,7 +773,7 @@ def build(con):
     labs = list(COMPANIES)
 
     dev = {}
-    for m in ("pypi", "npm", "hf_downloads", "agent_prs", "agent_prs_cursor"):
+    for m in ("pypi", "npm", "hf_downloads", "hf_likes", "agent_prs", "agent_prs_cursor"):
         ser = data.get(m, {})
         if not ser:
             continue
@@ -756,6 +815,28 @@ def build(con):
                      "review_rate": data["app_review_rate"][rr_day][key] if rr_day else None,
                      "review_stars": data["app_review_stars"][rr_day][key] if rr_day else None, "review_asof": rr_day})
 
+    # Agent platforms: the attention rows (Hacker News, YouTube) plus each coding agent's own npm downloads and, for claude/ and codex/,
+    # branch-prefix pull requests, both with the exact week before.
+    att = kv_get(con, "attention") or {}
+    agents = {}
+    for k, (aname, alab, tier, _h, _y, pk) in AGENTS.items():
+        r = dict((att.get("agents") or {}).get(k, {}))
+        r.update({"name": aname, "lab": alab, "tier": tier, "has_npm": bool(pk)})
+        npm = data.get("npm", {})
+        if pk and npm:
+            nl = max(npm)
+            np_ = (datetime.fromisoformat(nl).date() - timedelta(days=7)).isoformat()
+            r["npm"] = [npm[nl].get(k), npm.get(np_, {}).get(k)]
+            r["npm_asof"] = nl
+        pl = AGENT_PR_LAB.get(k)
+        if pl and data.get("agent_prs"):
+            pr = data["agent_prs"]
+            pn = max(pr)
+            pp = (datetime.fromisoformat(pn).date() - timedelta(days=7)).isoformat()
+            r["prs"] = [pr[pn].get(pl), pr.get(pp, {}).get(pl)]
+            r["prs_asof"] = pn
+        agents[k] = r
+
     manual = json.loads(MANUAL.read_text()) if MANUAL.exists() else {}
     return {
         "updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
@@ -763,7 +844,7 @@ def build(con):
         "ramp": manual.get("ramp_ai_index"), "dev": dev, "apps": apps,
         "attention": kv_get(con, "attention"), "arena": kv_get(con, "arena"), "polymarket": kv_get(con, "polymarket"),
         "radar": kv_get(con, "radar"), "openrouter": kv_get(con, "openrouter"),
-        "pm_names": PM_NAMES, "names": name_lists(),
+        "pm_names": PM_NAMES, "names": name_lists(), "agents": agents,
     }
 
 
