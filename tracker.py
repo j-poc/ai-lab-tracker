@@ -57,6 +57,11 @@ AGENT_PR_LAB = {"ag_claude_code": "anthropic", "ag_codex": "openai"}  # lab seri
 # Cursor (owned by SpaceXAI since Aug 2026) is a separate series, so the xAI line stays visible but labeled.
 PR_SERIES = [("anthropic", "claude/", "agent_prs"), ("openai", "codex/", "agent_prs"), ("xai", "cursor/", "agent_prs_cursor")]
 
+# GitHub stars (all time), saved daily so the weekly gain shows after a week. One repository per row, chosen by hand.
+# Anthropic publishes no open weights, so it has no open-model repository. Muse Code has no public repository.
+STAR_REPOS_OPEN = {"openai": "openai/gpt-oss", "xai": "xai-org/grok-1", "meta": "meta-llama/llama"}  # Grok-1 is the only xAI open-weights repo and is old
+STAR_REPOS_AGENT = {"ag_claude_code": "anthropics/claude-code", "ag_codex": "openai/codex", "ag_grok_build": "xai-org/grok-build"}
+
 # Arena (formerly LMArena) human-preference leaderboards. Official dataset, CC BY 4.0.
 ARENA_URL = "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset/resolve/main/{cfg}/latest-00000-of-00001.parquet"
 ARENA_BOARDS = [  # key -> (title, dataset config, category)
@@ -82,6 +87,8 @@ APPS = {  # key -> (App Store id, lab, name)
     "grok": (6670324846, "xai", "Grok"),
     "grokbot": (6794501026, "xai", "Grok Bot"),
     "metaai": (1558240027, "meta", "Meta AI"),
+    "muse": (6760173601, "meta", "Muse from Meta"),
+    "claudeduet": (6803276000, "anthropic", "Claude Duet"),
 }
 PRODUCTS = {  # key -> (name, lab, Hacker News phrase, YouTube query, words the video title must contain)
     "grokbot": ("Grok Bot", "xai", ["Grok Bot", "GrokBot"], ["Grok Bot", "GrokBot"], ("grok bot", "grokbot")),
@@ -282,6 +289,17 @@ def collect_hf(con, today):
         log("hf ok")
     except Exception as ex:
         log(f"hf FAILED: {ex}")
+
+
+def collect_stars(con, today):
+    """GitHub stars of each lab's open-model repository and each coding agent's repository."""
+    for metric, repos in (("gh_stars_open", STAR_REPOS_OPEN), ("gh_stars", STAR_REPOS_AGENT)):
+        for key, repo in repos.items():
+            try:
+                put(con, today, key, metric, int(gh_json(f"repos/{repo}")["stargazers_count"]))
+            except Exception as ex:
+                log(f"stars {repo} FAILED: {ex}")
+    log("stars done")
 
 
 def collect_prs(con, windows):
@@ -783,7 +801,7 @@ def build(con):
     labs = list(COMPANIES)
 
     dev = {}
-    for m in ("pypi", "npm", "hf_downloads", "hf_likes", "agent_prs", "agent_prs_cursor"):
+    for m in ("pypi", "npm", "hf_downloads", "hf_likes", "gh_stars_open", "agent_prs", "agent_prs_cursor"):
         ser = data.get(m, {})
         if not ser:
             continue
@@ -838,6 +856,12 @@ def build(con):
             np_ = (datetime.fromisoformat(nl).date() - timedelta(days=7)).isoformat()
             r["npm"] = [npm[nl].get(k), npm.get(np_, {}).get(k)]
             r["npm_asof"] = nl
+        st = data.get("gh_stars", {})
+        if k in STAR_REPOS_AGENT and st:
+            sl = max(d for d in st if k in st[d])
+            sp = (datetime.fromisoformat(sl).date() - timedelta(days=7)).isoformat()
+            r["stars"] = [st[sl].get(k), st.get(sp, {}).get(k)]
+            r["stars_asof"] = sl
         pl = AGENT_PR_LAB.get(k)
         if pl and data.get("agent_prs"):
             pr = data["agent_prs"]
@@ -876,6 +900,7 @@ def main():
             collect_pypi(con, windows)
             collect_npm(con, windows)
             collect_hf(con, today)
+            collect_stars(con, today)
             con.commit()
             collect_prs(con, windows)
         if "apps" in only:
