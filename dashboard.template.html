@@ -312,7 +312,7 @@ if (OR) {
   $('orasof').textContent = 'Week starting ' + OR.weeks[OR.weeks.length - 1] + '. Share of all OpenRouter tokens. Data as of ' + OR.as_of + '.';
   $('ortbl').innerHTML = '<tr><th class="l">Model author</th><th>Share of tokens</th></tr>' + OR.top_authors.map(a => '<tr><td class="l">' + esc(({'x-ai':'xAI','meta-llama':'Meta','openai':'OpenAI','anthropic':'Anthropic','z-ai':'Z.ai','deepseek':'DeepSeek','google':'Google'})[a[0]] || a[0]) + '</td><td>' + a[1].toFixed(1) + '%</td></tr>').join('');
   if (OR.top_models) {
-    $('ormodnote').textContent = 'The model of each lab with the most tokens in the latest week. Prices are the OpenRouter list price in US dollars per 1 million tokens, input and output. Other routes and discounts can cost less.';
+    $('ormodnote').textContent = 'The model of each lab with the most tokens in the latest week. Prices are the OpenRouter price in US dollars per 1 million tokens, input and output. A name that ends in (batch) is a batch variant, and batch prices are lower than the normal price for the same model. Other routes and discounts can cost less.';
     const pr = v => v == null ? '–' : '$' + v;
     $('ormod').innerHTML = '<tr><th class="l">Lab</th><th class="l">Model</th><th>Share of tokens</th><th>Input price</th><th>Output price</th></tr>' + labs.filter(l => OR.top_models[l]).map(l => { const m = OR.top_models[l]; return '<tr><td class="l">' + dot(D.colors[l]) + esc(D.companies[l]) + '</td><td class="l">' + esc(m.name) + '</td><td>' + m.share.toFixed(1) + '%</td><td>' + pr(m.in_price) + '</td><td>' + pr(m.out_price) + '</td></tr>'; }).join('');
   } else $('ormod').closest('.card').hidden = true;
