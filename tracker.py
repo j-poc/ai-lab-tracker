@@ -593,7 +593,7 @@ def collect_attention(con):
         row, old = {"name": name, "lab": lab}, (prev.get("products") or {}).get(pk, {})
         part(row, old, "hn", "hn", lambda: [hn_union(hn_q, cur_a, cur_b), hn_union(hn_q, pri_a, pri_b)])
         if key and yt_q:
-            part(row, old, "yt", "yt", lambda: yt_row(yt_cache, [f"n:{n}" for n in pv[3]], yt_end))
+            part(row, old, "yt", "yt", lambda: yt_row(yt_cache, [f"n:{n}" for n in yt_q], yt_end))
         out["products"][pk] = row
     for lab, al in ALIASES.items():
         row, old = {}, (prev.get("labs") or {}).get(lab, {})
