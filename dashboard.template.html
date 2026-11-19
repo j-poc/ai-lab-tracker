@@ -77,9 +77,9 @@ a{color:inherit}
   </div>
 
   <h2 class="sec">Consumer apps</h2>
-  <p class="sec-sub">US iPhone only. Sorted by written reviews per day, which shows what is happening now. Total ratings favor old apps.</p>
+  <p class="sec-sub">US iPhone only. Sorted by new ratings in the last 7 days, which shows what is happening now. Total ratings favor old apps.</p>
   <div class="grid"><div class="card wide"><div class="scroll"><table id="apps"></table></div>
-    <div class="note">Rank is on the US App Store top-free chart (top 200) and the Productivity chart. Reviews per day uses the newest 500 written reviews. The 7-day ratings gain needs a snapshot from a week ago.</div></div></div>
+    <div class="note">Rank is on the US App Store top-free chart (top 200) and the Productivity chart. Reviews per day uses the newest 500 written reviews. Apple\'s review feed stopped returning reviews on 2026-11-18, so that column shows the last reading with its date and will be removed if the feed does not return. The 7-day ratings gain needs a snapshot from a week ago.</div></div></div>
 
   <div id="radarsec" hidden>
     <h2 class="sec">Web traffic rank</h2>
@@ -104,14 +104,14 @@ a{color:inherit}
   </div>
 
   <h2 class="sec">Model quality</h2>
-  <p class="sec-sub">How people rate each lab&rsquo;s best model in blind head-to-head votes on Arena (formerly LMArena). This is quality, not popularity. Each lab is shown by its best model on each board.</p>
+  <p class="sec-sub">How people rate each lab&rsquo;s best model in blind head-to-head votes on Arena (formerly LMArena). This is preference in blind votes, not usage. Each lab is shown by its best model on each board.</p>
   <div class="grid">
     <div class="card"><h3>Elo points behind the top model</h3><p id="arenanote"></p><div class="chart"><canvas id="arena"></canvas></div></div>
     <div class="card"><h3>Best model of each lab</h3><p id="arenaasof"></p><div class="scroll"><table id="arenatbl"></table></div></div>
   </div>
 
   <h2 class="sec">Market odds</h2>
-  <p class="sec-sub">What traders expect, from Polymarket. Real probabilities. Labs not tracked here appear in grey.</p>
+  <p class="sec-sub">What traders expect, from Polymarket. Prices that traders pay, read as probabilities. Labs not tracked here appear in grey.</p>
   <div class="grid">
     <div class="card"><h3 id="pm1t"></h3><p id="pm1s"></p><div class="chart"><canvas id="pm1"></canvas></div></div>
     <div class="card"><h3 id="pm2t"></h3><p id="pm2s"></p><div class="chart"><canvas id="pm2"></canvas></div></div>
@@ -171,15 +171,15 @@ if (dev.agent_prs) {
 const gm = [['pypi','Package downloads, PyPI'], ['npm','Package downloads, npm'], ['agent_prs','Agent pull requests'], ['agent_prs_cursor','Cursor pull requests (xAI)']].filter(x => dev[x[0]] && dev[x[0]].growth);
 new Chart('growth', {type:'bar', data:{labels:gm.map(x => x[1]), datasets:labs.map(l => ({label:D.companies[l], data:gm.map(x => { const g = dev[x[0]].growth[l]; return g == null ? null : +g.toFixed(1); }), backgroundColor:D.colors[l], borderRadius:4}))},
   options:{maintainAspectRatio:false, plugins:{legend:{position:'bottom'}, tooltip:{callbacks:{label:t => t.dataset.label + ': ' + (t.parsed.y > 0 ? '+' : '') + t.parsed.y + '%'}}}, scales:{y:{grace:'12%', ticks:{callback:v => v + '%'}}}}});
-const devRows = [['pypi','Package downloads, PyPI (7 days)'], ['npm','Package downloads, npm (7 days)'], ['agent_prs','Agent pull requests (7 days)'], ['agent_prs_cursor','Cursor pull requests, cursor/ (7 days)']].filter(x => dev[x[0]]);
-$('devasof').textContent = devRows.length ? 'Week ending ' + dev[devRows[0][0]].as_of + '. Change is against the week before. xAI and Meta package numbers are undercounts, because many developers call them through the OpenAI SDK. xAI has no official npm package, so that cell is n/a. Meta also ships open model weights, which package downloads do not show.' : '';
+const devRows = [['pypi','Package downloads, PyPI (7 days)'], ['npm','Package downloads, npm (7 days)'], ['hf_downloads','Open-weight language models, Hugging Face downloads (30 days)'], ['agent_prs','Agent pull requests (7 days)'], ['agent_prs_cursor','Cursor pull requests, cursor/ (7 days)']].filter(x => dev[x[0]]);
+$('devasof').textContent = devRows.length ? 'Week ending ' + dev[devRows[0][0]].as_of + '. Change is against the week before. xAI and Meta package numbers are undercounts, because many developers call them through the OpenAI SDK. xAI has no official npm package, so that cell is n/a. The Hugging Face row counts open-weight language models only; Anthropic publishes none, so it is n/a, not zero.' : '';
 $('devtbl').innerHTML = '<tr><th class="l">Signal</th>' + labs.map(l => '<th>' + D.companies[l] + '</th>').join('') + '</tr>' +
   devRows.map(x => '<tr><td>' + x[1] + '</td>' + labs.map(l => { const v = dev[x[0]].latest[l]; return '<td>' + (v == null ? '<span class="mute">n/a</span>' : fmt(v) + pct(dev[x[0]].wow[l])) + '</td>'; }).join('') + '</tr>').join('');
 
 // ---------- Consumer apps ----------
 $('apps').innerHTML = '<tr><th class="l">App</th><th>Top-free rank</th><th>Productivity rank</th><th>Reviews per day</th><th>Recent avg stars</th><th>Ratings gained, 7 days</th><th>Total ratings</th></tr>' +
-  (D.apps || []).slice().sort((a, b) => (b.review_rate || 0) - (a.review_rate || 0)).map(a =>
-    '<tr><td>' + dot(D.colors[a.lab]) + esc(a.name) + '</td><td>' + (a.rank ? '#' + a.rank : 'outside top 200') + '</td><td>' + (a.prod_rank ? '#' + a.prod_rank : 'outside top 200') + '</td><td>' + fmt(a.review_rate) + '</td><td>' + (a.review_stars ? a.review_stars.toFixed(2) : '–') + '</td><td>' + (a.gained_7d == null ? '<span class="mute">collecting</span>' : '+' + fmt(a.gained_7d)) + '</td><td>' + fmt(a.ratings) + '</td></tr>').join('');
+  (D.apps || []).slice().sort((a, b) => (b.gained_7d || 0) - (a.gained_7d || 0)).map(a =>
+    '<tr><td>' + dot(D.colors[a.lab]) + esc(a.name) + '</td><td>' + (a.rank ? '#' + a.rank : 'outside top 200') + '</td><td>' + (a.prod_rank ? '#' + a.prod_rank : 'outside top 200') + '</td><td>' + (a.review_rate ? fmt(a.review_rate) + (a.review_asof && a.review_asof !== a.as_of ? ' <span class="mute">(' + a.review_asof + ')</span>' : '') : '<span class="mute">n/a</span>') + '</td><td>' + (a.review_stars ? a.review_stars.toFixed(2) : '–') + '</td><td>' + (a.gained_7d == null ? '<span class="mute">collecting</span>' : '+' + fmt(a.gained_7d)) + '</td><td>' + fmt(a.ratings) + '</td></tr>').join('');
 
 // ---------- Attention ----------
 const A = D.attention;
@@ -190,14 +190,10 @@ function pairChart(id, keys, names, colors, pairs, fmtLabel) {
     {label:'Last 7 days', data:pairs.map(p => p ? p[0] : null), backgroundColor:colors, borderRadius:4}]},
     options:{maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:t => t.dataset.label + ': ' + (fmtLabel ? fmtLabel(t.parsed.y) : fmt(t.parsed.y))}}}, scales:{y:{beginAtZero:true, grace:'12%', ticks:{callback:v => fmtLabel ? fmtLabel(v) : fmt(v)}}}}});
 }
-const NAMES = {
-  yt: 'Anthropic, Claude, Claude Code, Claude Opus | OpenAI, ChatGPT, OpenAI Codex, GPT-5 | Grok, SpaceXAI, Grok Bot, Grokipedia | Meta AI, Muse Spark, Muse Wonder, Llama 4, Meta Superintelligence',
-  hn: 'Anthropic, Claude Code, Claude Opus, Claude Sonnet, Claude Haiku, Claude AI | OpenAI, ChatGPT, OpenAI Codex, Codex CLI, GPT-5, Sora | Grok, SpaceXAI, SpaceX AI, xAI, Grokipedia | Meta AI, Muse Spark, Muse Wonder, Meta Muse, Meta Superintelligence, Meta Llama, Llama 4',
-  news: 'Anthropic, Claude Code/Opus/Sonnet/Haiku, Claude AI | OpenAI, ChatGPT, OpenAI Codex, Codex CLI, GPT-5 | Grok, SpaceXAI, SpaceX AI, Grok Bot, Grokipedia | Meta AI, Muse Spark, Muse Wonder, Meta Muse, Meta Superintelligence, Meta Llama, Llama 4',
-  wiki: 'Anthropic, Claude (AI), Claude (language model), Claude Code | OpenAI, ChatGPT, OpenAI Codex, GPT-5, Sora | SpaceXAI, XAI (company), Grok (chatbot), Grokipedia | Meta AI, Llama, Meta Superintelligence Labs, Muse Spark, Muse Wonder'
-};
+const NAMES = D.names;
 if (A) {
-  $('attsub').textContent = 'Window: ' + A.window + ' (UTC). Compared with the 7 days before. Attention is the weakest signal here: it shows interest, not use or spending.';
+  const stale0 = []; labs.forEach(l => Object.entries((A.labs[l] && A.labs[l].stale) || {}).forEach(([f, d]) => stale0.push(D.companies[l] + ' ' + f + ' (as of ' + d + ')')));
+  $('attsub').textContent = (stale0.length ? 'Old values kept because collection failed: ' + stale0.join(', ') + '. ' : '') + 'Window: ' + A.window + ' (UTC). Compared with the 7 days before. Attention is the weakest signal here: it shows interest, not use or spending.';
   const P = A.products;
   const pn = prods.map(k => D.products[k].name), pc = prods.map(k => D.colors[D.products[k].lab]);
   pairChart('yt', prods, pn, pc, prods.map(k => P[k] && P[k].yt ? P[k].yt.views : null));
@@ -284,7 +280,7 @@ if (OR) {
   new Chart('orchart', {type:'line', data:{labels:OR.weeks, datasets:labs.map(l => ({label:D.companies[l], data:OR.share[l], borderColor:D.colors[l], backgroundColor:D.colors[l], tension:.3, pointRadius:3}))},
     options:{maintainAspectRatio:false, plugins:{legend:{position:'bottom'}, tooltip:{callbacks:{label:t => t.dataset.label + ': ' + (t.parsed.y == null ? '–' : t.parsed.y.toFixed(1) + '%')}}},
       scales:{y:{beginAtZero:true, grace:'12%', ticks:{callback:v => v + '%'}}}}});
-  $('ornote').textContent = 'Weekly share of all tokens. Only the 50 biggest models of each week are named, so small labs are understated. Models of one lab can sit outside the top 50.';
+  $('ornote').textContent = 'Weekly share of all tokens. Only the 50 biggest models of each week are named, so small labs are understated. A gap in a line means the lab had no model in the top 50 that week, not zero use. Complete weeks only.';
   $('orasof').textContent = 'Week starting ' + OR.weeks[OR.weeks.length - 1] + '. Share of all OpenRouter tokens. Data as of ' + OR.as_of + '.';
   $('ortbl').innerHTML = '<tr><th class="l">Model author</th><th>Share of tokens</th></tr>' + OR.top_authors.map(a => '<tr><td class="l">' + esc(({'x-ai':'xAI','meta-llama':'Meta','openai':'OpenAI','anthropic':'Anthropic','z-ai':'Z.ai','deepseek':'DeepSeek','google':'Google'})[a[0]] || a[0]) + '</td><td>' + a[1].toFixed(1) + '%</td></tr>').join('');
 }
@@ -304,15 +300,16 @@ $('lead').innerHTML = cards.map(c => '<div class="lc"><div class="k">' + esc(c[0
 const as = k => (D.dev[k] ? D.dev[k].as_of : '–');
 const rows = [
   ['Money', '<a href="https://ramp.com/data/ai-index">Ramp AI Index</a>', 'Share of Ramp customers (US businesses) that pay a vendor, and share of token spend', R ? R.adoption.period + '; tokens ' + R.token_spend.period : '–', 'Ramp customers only. Meta not reported. Page says it likely understates adoption.'],
-  ['Developer usage', '<a href="https://pypistats.org">PyPI Stats</a> and <a href="https://api.npmjs.org">npm API</a>', 'Weekly downloads of every official package, summed. PyPI: anthropic, claude-agent-sdk, claude-code-sdk | openai, openai-agents, openai-codex | xai-sdk | llama-api-client, llama-models, llama-stack-client, llama-stack. npm: @anthropic-ai/sdk, @anthropic-ai/claude-code, @anthropic-ai/claude-agent-sdk | openai, @openai/codex, @openai/agents, @openai/codex-sdk | none for xAI (its only npm package is Vercel\'s, not official) | llama-api-client, llama-stack-client', 'Week ending ' + as('pypi'), 'Installs, not users: a package that needs another one (openai-agents needs openai) counts in both. xAI and Meta are often called through the OpenAI SDK, so their numbers are undercounts, and Meta also ships open weights, which this does not show. CI installs inflate all.'],
-  ['Developer usage', '<a href="https://docs.github.com/en/rest/search">GitHub search API</a>', 'Pull requests whose branch starts with claude/, codex/ or cursor/', 'Week ending ' + as('agent_prs'), 'Default prefixes only. Renamed branches and local agent work are missed. Claude prefixes come from several Claude surfaces. cursor/ is Cursor, owned by SpaceXAI since Aug 2026, and is not the Grok Bot agent. GitHub search counts are approximate. Meta has no verified prefix.'],
+  ['Developer usage', '<a href="https://pypistats.org">PyPI Stats</a> and <a href="https://api.npmjs.org">npm API</a>', 'Weekly downloads of each lab\'s official SDK, agent and coding-agent packages, summed. Helper libraries such as tiktoken are left out. PyPI: anthropic, claude-agent-sdk, claude-code-sdk | openai, openai-agents, openai-codex | xai-sdk | llama-api-client, llama-models, llama-stack-client, llama-stack. npm: @anthropic-ai/sdk, @anthropic-ai/claude-code, @anthropic-ai/claude-agent-sdk | openai, @openai/codex, @openai/agents, @openai/codex-sdk | none for xAI (its only npm package is Vercel\'s, not official) | llama-api-client, llama-stack-client', 'Week ending ' + as('pypi'), 'Installs, not users: a package that needs another one (openai-agents needs openai) counts in both. xAI and Meta are often called through the OpenAI SDK, so their numbers are undercounts, and Meta also ships open weights, which this does not show. CI installs inflate all.'],
+  ['Developer usage', '<a href="https://huggingface.co/docs/hub/api">Hugging Face Hub API</a>', 'Last-30-day downloads of the text-generation models in each lab\'s own organisation: openai, xai-org, meta-llama (top 100 models each)', 'Day ' + as('hf_downloads'), 'Open weights only. Anthropic publishes none. A rolling 30 days, not 7. Other model types (CLIP, Whisper) are left out so that every lab is measured on language models.'],
+  ['Developer usage', '<a href="https://docs.github.com/en/rest/search">GitHub search API</a>', 'Pull requests whose branch starts with claude/, codex/ or cursor/', 'Week ending ' + as('agent_prs'), 'Default prefixes only. Renamed branches and local agent work are missed. Claude prefixes come from several Claude surfaces. cursor/ is Cursor, owned by SpaceXAI since Aug 2026, and is not the Grok Bot agent. GitHub search counts are approximate. Meta has no verified prefix. Branches that start with grok/ exist (about 1,500 PRs a week) but nothing shows that Grok Bot makes them, so they are not counted.'],
   ['Model quality', '<a href="https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset">Arena leaderboard dataset</a> (CC BY 4.0, by Arena / LMArena)', 'Best-rated model of each lab on the Text, Text coding and WebDev boards, and its points behind the top model', AR ? AR.text.date : '\u2013', 'Human votes on chat and coding answers. Style and vote mix affect results. A lab can list many variants, and we show its best one. Scores are not comparable across boards. Snapshot dates can lag by days.'],
   ['Consumer apps', '<a href="https://developer.apple.com/library/archive/documentation/AudioVideo/Conceptual/iTuneSearchAPI/">Apple iTunes Search API and RSS</a>', 'Chart rank, rating counts, newest 500 written reviews', (D.apps[0] || {}).as_of || '–', 'US iPhone only. No Android, web or Mac. Written reviews are a small share of users.'],
   ['Attention', '<a href="https://developers.google.com/youtube/v3">YouTube Data API v3</a>', 'Views of the 50 most-viewed videos per name published in a fixed Monday-to-Sunday week, for every name of a lab or product (see the chart notes). Videos of 4 minutes or longer only', A ? (A.yt_window || '–') : '–', 'Top 50 only. Videos can mention a product in the title without being about it. Views keep growing after the week. The free search limit is small, so a run saves what it can and the next run continues; each bar shows data only once collected.'],
   ['Attention', '<a href="https://hn.algolia.com/api">Hacker News (Algolia)</a>', 'Stories and comments with any name of the lab or product, each item counted once', A ? A.window : '–', 'Developer audience. "Codex" can also match non-OpenAI uses.'],
   ['Attention', '<a href="https://arctic-shift.photon-reddit.com">Reddit via Arctic Shift archive</a>', 'Posts per week in each lab\'s main subreddits', A ? A.window : '–', 'Community size drives the total, so the change matters more. Posts only, no comments. The archive can lag or miss removed posts. Reddit blocks direct automated reads, so a free archive is used.'],
   ['Attention', '<a href="https://wikimedia.org/api/rest_v1/">Wikimedia pageviews</a>', 'Daily views of several English articles per lab (company, products, models)', A ? A.window : '–', 'Grok Bot redirects to the Grok article, so it cannot be isolated.'],
-  ['Attention', '<a href="https://www.gdeltproject.org">GDELT</a>', 'Share of monitored news volume mentioning any name of each lab', A ? A.window : '–', 'Counts all mentions, positive or negative. Meta\'s Muse names are recent, and "Meta Llama" can match older Llama news. Cursor (owned by SpaceXAI since Aug 2026) is not counted under xAI. Every lab gets the same rule: company name, products, model families and coding agents, no people. "Grok" is also an English verb: in a sample of 24 Hacker News posts, 4 used the verb, so xAI\'s Hacker News count runs slightly high. GDELT rejects the short name "xAI" in quotes, so it is only used for Hacker News.'],
+  ['Attention', '<a href="https://www.gdeltproject.org">GDELT</a>', 'Share of monitored news volume mentioning any name of each lab', A ? A.window : '–', 'Counts all mentions, positive or negative. Meta\'s Muse names are recent, and "Meta Llama" can match older Llama news. Cursor (owned by SpaceXAI since Aug 2026) is not counted under xAI. Every lab gets the same rule: company name, products, model families and coding agents, no people. "Grok" is also an English verb: in a sample of 24 Hacker News posts, 4 used the verb, so xAI\'s Hacker News count runs slightly high. Bare "Claude" and "Codex" are counted: in a sample of 16 posts each, almost all were about the lab. Bare "Llama" is not counted: most of those posts were about llama.cpp, a community project, not Meta. GDELT rejects the short name "xAI" in quotes, so it is only used for Hacker News.'],
   ['Web traffic rank', '<a href="https://radar.cloudflare.com/ai-insights">Cloudflare Radar</a> internet services ranking', 'Daily rank of each lab\'s chat site among Generative AI services, last 28 days', RD ? RD.as_of : '–', 'Ranks sites by DNS lookups on Cloudflare\'s 1.1.1.1 resolver, so it is a proxy for web use. It is not a user count. Apps and API use are not included. Only one Meta service (Meta AI) is ranked.'],
   ['Real API usage', '<a href="https://openrouter.ai/rankings">OpenRouter rankings dataset</a> (CC BY 4.0, source: OpenRouter)', 'Weekly tokens by model author, as a share of all tokens', OR ? OR.as_of : '–', 'OpenRouter users only, and they favor cheap and open models. Top 50 models per week only. Token counts come from each provider\'s own tokenizer.'],
   ['Market odds', '<a href="https://polymarket.com">Polymarket</a>', 'Probability that the lab has the best model on the resolution date', D.polymarket ? D.polymarket.as_of : '–', 'Crowd opinion with money behind it. Thin markets can move on one trade.']

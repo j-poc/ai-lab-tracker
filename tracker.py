@@ -70,9 +70,9 @@ APPS = {  # key -> (App Store id, lab, name)
 }
 PRODUCTS = {  # key -> (name, lab, Hacker News phrase, YouTube query, words the video title must contain)
     "grokbot": ("Grok Bot", "xai", ["Grok Bot", "GrokBot"], ["Grok Bot", "GrokBot"], ("grok bot", "grokbot")),
-    "claudecode": ("Claude Code", "anthropic", ["Claude Code"], ["Claude Code"], ("claude code",)),
+    "claudecode": ("Claude + Claude Code", "anthropic", ["Claude"], ["Claude AI", "Claude Code", "Claude Opus"], ()),
     # OpenAI ships ChatGPT and Codex as one product family, so they are one row here
-    "codex": ("ChatGPT + Codex", "openai", ["ChatGPT", "OpenAI Codex", "Codex CLI"], ["ChatGPT", "OpenAI Codex", "Codex CLI"], ("chatgpt", "codex")),
+    "codex": ("ChatGPT + Codex", "openai", ["ChatGPT", "Codex"], ["ChatGPT", "OpenAI Codex", "Codex CLI"], ()),
     "metaai": ("Meta AI app", "meta", ["Meta AI"], ["Meta AI"], ("meta ai",)),
     "muse": ("Meta Muse models", "meta", ["Muse Spark", "Muse Wonder"], ["Muse Spark", "Muse Wonder"], ("muse spark", "muse wonder")),
 }
@@ -82,11 +82,11 @@ PRODUCTS = {  # key -> (name, lab, Hacker News phrase, YouTube query, words the 
 # Cursor (owned by SpaceXAI since Aug 2026) is NOT counted in xAI.
 ALIASES = {
     "anthropic": {"news": '(Anthropic OR "Claude Code" OR "Claude Opus" OR "Claude Sonnet" OR "Claude Haiku" OR "Claude AI")',
-                  "hn": ["Anthropic", "Claude Code", "Claude Opus", "Claude Sonnet", "Claude Haiku", "Claude AI"],
-                  "yt": ["Anthropic", "Claude AI", "Claude Code", "Claude Opus"],
+                  "hn": ["Anthropic", "Claude"],
+                  "yt": ["Anthropic", "Claude AI", "Claude Code", "Claude Opus", "Claude Sonnet"],
                   "wiki": ["Anthropic", "Claude_(AI)", "Claude_(language_model)", "Claude_Code"]},
     "openai": {"news": '(OpenAI OR ChatGPT OR "OpenAI Codex" OR "Codex CLI" OR "GPT-5" OR "gpt-oss")',
-               "hn": ["OpenAI", "ChatGPT", "OpenAI Codex", "Codex CLI", "GPT-5", "gpt-oss", "ChatGPT Atlas", "Sora"],
+               "hn": ["OpenAI", "ChatGPT", "Codex", "GPT-5", "gpt-oss", "Sora"],
                "yt": ["OpenAI", "ChatGPT", "OpenAI Codex", "GPT-5"],
                "wiki": ["OpenAI", "ChatGPT", "OpenAI_Codex", "GPT-5", "Sora_(text-to-video_model)"]},
     "xai": {"news": '(Grok OR SpaceXAI OR "SpaceX AI" OR "Grok Bot" OR Grokipedia)',
@@ -94,13 +94,15 @@ ALIASES = {
             "yt": ["Grok", "SpaceXAI", "Grok Bot", "Grokipedia"],
             "wiki": ["SpaceXAI", "XAI_(company)", "Grok_(chatbot)", "Grokipedia"]},
     "meta": {"news": '("Meta AI" OR "Muse Spark" OR "Muse Wonder" OR "Meta Muse" OR "Meta Superintelligence" OR "Meta Llama" OR "Llama 4")',
-             "hn": ["Meta AI", "Muse Spark", "Muse Wonder", "Meta Muse", "Meta Superintelligence", "Meta Llama", "Llama 4"],
+             "hn": ["Meta AI", "Muse Spark", "Muse Wonder", "Meta Muse", "Meta Superintelligence", "Meta Llama", "Llama 3", "Llama 4"],
              "yt": ["Meta AI", "Muse Spark", "Muse Wonder", "Meta Llama", "Llama 4", "Meta Superintelligence"],
              "wiki": ["Meta_AI", "Llama_(language_model)", "Meta_Superintelligence_Labs", "Muse_(language_model)", "Muse_(AI_agent)", "Muse_Spark", "Muse_Wonder"]},
 }
 # Reddit communities where each lab's users gather. Activity is counted as posts per week (Arctic Shift archive).
-REDDIT = {"anthropic": ["ClaudeAI", "ClaudeCode"], "openai": ["OpenAI", "ChatGPT"], "xai": ["grok", "GrokBot"], "meta": ["MetaAI"]}
+REDDIT = {"anthropic": ["ClaudeAI", "ClaudeCode", "claude", "Anthropic"], "openai": ["OpenAI", "ChatGPT", "codex", "ChatGPTPro"],
+          "xai": ["grok", "GrokBot"], "meta": ["MetaAI"]}
 PM_NAMES = {"anthropic": "Anthropic", "openai": "OpenAI", "xai": "SpaceXAI", "meta": "Meta"}
+PM_ALIAS = {"xAI": "SpaceXAI"}  # Polymarket events name the same company two ways
 
 
 def log(msg):
@@ -242,6 +244,27 @@ def collect_npm(con, windows):
         time.sleep(1)
 
 
+# Open-weight models on Hugging Face. Downloads over the last 30 days, text-generation models of each lab's own organisation.
+# Anthropic publishes no open weights, so it has no number (shown as n/a, not zero). Other model types (OpenAI's CLIP and
+# Whisper, Meta's vision models) are left out so that every lab is measured on language models only.
+HF_ORGS = {"anthropic": [], "openai": ["openai"], "xai": ["xai-org"], "meta": ["meta-llama"]}
+
+
+def collect_hf(con, today):
+    try:
+        for lab, orgs in HF_ORGS.items():
+            if not orgs:
+                continue
+            total = 0
+            for org in orgs:
+                ms = http_json(f"https://huggingface.co/api/models?author={org}&filter=text-generation&sort=downloads&direction=-1&limit=100")
+                total += sum(int(m.get("downloads") or 0) for m in ms)
+            put(con, today, lab, "hf_downloads", total)
+        log("hf ok")
+    except Exception as ex:
+        log(f"hf FAILED: {ex}")
+
+
 def collect_prs(con, windows):
     """Weekly pull requests opened from each agent's default branch prefix."""
     for co, prefix, metric in PR_SERIES:
@@ -343,7 +366,8 @@ def collect_openrouter(con):
         by_week = {}
         for r in res["data"]:
             by_week.setdefault(r["date"], {})[r["model_permaslug"]] = int(r["total_tokens"])
-        weeks = sorted(by_week)[-8:]
+        # a week is listed by its Monday; a week that is not over yet would show a drop that is not real
+        weeks = [w for w in sorted(by_week) if datetime.fromisoformat(w).date() + timedelta(days=6) <= end][-8:]
         if len(weeks) < 2:
             raise RuntimeError("fewer than 2 weeks")
         owner = {a: lab for lab, names in OPENROUTER_AUTHORS.items() for a in names}
@@ -359,7 +383,7 @@ def collect_openrouter(con):
             for lab in tokens:
                 tokens[lab].append(sum(n for a, n in authors.items() if owner.get(a) == lab))
             top[w] = sorted(authors.items(), key=lambda x: -x[1])[:5]
-        share = {lab: [round(100 * t / tot, 2) if tot else None for t, tot in zip(v, totals)] for lab, v in tokens.items()}
+        share = {lab: [round(100 * t / tot, 2) if tot and t else None for t, tot in zip(v, totals)] for lab, v in tokens.items()}  # None = below the top-50 cutoff, not zero use
         for lab, v in share.items():
             for w, x in zip(weeks, v):
                 if x is not None:
@@ -387,7 +411,7 @@ def recent_reviews(tid, pages=10):
         stars += [int(e["im:rating"]["label"]) for e in got]
         time.sleep(0.3)
     if len(stamps) < 2:
-        return 0.0, 0.0
+        raise RuntimeError("the review feed returned no reviews")
     span = max((max(stamps) - min(stamps)).total_seconds() / 86400, 1 / 24)
     return len(stamps) / span, sum(stars) / len(stars)
 
@@ -586,8 +610,13 @@ def collect_attention(con):
                 row[field] = old[field] if val is None and field in old else val  # nothing new: keep the last value
             except Exception as ex:
                 log(f"{part_name} {field} FAILED: {str(ex)[:100]}")
+                if field in old:  # keep the last good value, and say it is old
+                    row[field] = old[field]
+                    row.setdefault("stale", {})[field] = (old.get("stale") or {}).get(field) or prev.get("as_of")
         elif field in old:
             row[field] = old[field]
+            if field in (old.get("stale") or {}):
+                row.setdefault("stale", {})[field] = old["stale"][field]
 
     for pk, (name, lab, hn_q, yt_q, must) in PRODUCTS.items():
         row, old = {"name": name, "lab": lab}, (prev.get("products") or {}).get(pk, {})
@@ -611,6 +640,9 @@ def collect_attention(con):
                 row["reddit"] = reddit()
             except Exception as ex:
                 log(f"reddit {lab} FAILED: {str(ex)[:100]}")
+                if "reddit" in old:
+                    row["reddit"], row["reddit_subs"] = old["reddit"], old.get("reddit_subs")
+                    row.setdefault("stale", {})["reddit"] = (old.get("stale") or {}).get("reddit") or prev.get("as_of")
         elif "reddit" in old:
             row["reddit"], row["reddit_subs"] = old["reddit"], old.get("reddit_subs")
         if "news" in parts:
@@ -647,7 +679,7 @@ def collect_polymarket(con):
                 name = m.get("groupItemTitle", "")
                 if name in ("Other",) or name.startswith("Company "):
                     continue
-                odds[name] = float(json.loads(m["outcomePrices"])[0]) * 100
+                odds[PM_ALIAS.get(name, name)] = float(json.loads(m["outcomePrices"])[0]) * 100
             out.append({"title": ev["title"], "end": ev["endDate"][:10], "odds": odds})
         kv_put(con, "polymarket", {"as_of": utc_today().isoformat(), "events": out})
         log("polymarket ok")
@@ -667,24 +699,39 @@ def last_date(series):
     return max(series) if series else None
 
 
+def name_lists():
+    """The names each panel counts, written from the same lists the collectors use, so the page text cannot drift from the code."""
+    def join(f):
+        return " | ".join(", ".join(f(al)) for al in ALIASES.values())
+    news = lambda al: [x.strip().strip('"') for x in re.sub(r"[()]", "", al["news"]).split(" OR ")]
+    return {"yt": join(lambda al: al["yt"]), "hn": join(lambda al: al["hn"]), "news": join(news),
+            "wiki": join(lambda al: [w.replace("_", " ") for w in al["wiki"]]),
+            "reddit": " | ".join(", ".join("r/" + r for r in REDDIT[lab]) for lab in ALIASES)}
+
+
 def build(con):
     data = load(con)
     labs = list(COMPANIES)
 
     dev = {}
-    for m in ("pypi", "npm", "agent_prs", "agent_prs_cursor"):
+    for m in ("pypi", "npm", "hf_downloads", "agent_prs", "agent_prs_cursor"):
         ser = data.get(m, {})
-        dates = sorted(ser)
-        if not dates:
+        if not ser:
             continue
-        latest, prev = dates[-1], dates[-2] if len(dates) > 1 else None
+        latest = max(ser)
+        ld = datetime.fromisoformat(latest).date()
+        # Weekly points only: the date 7, 14, 21 ... days before the newest one. Older runs saved windows that end on
+        # other days, and comparing those would mix overlapping weeks (one day of change shown as a week of change).
+        dates = sorted(d for d in ser if (ld - datetime.fromisoformat(d).date()).days % 7 == 0)
+        prev = (ld - timedelta(days=7)).isoformat()
         rows = {"dates": dates, "series": {co: [ser[d].get(co) for d in dates] for co in labs}, "latest": ser[latest], "as_of": latest}
-        rows["wow"] = {co: (100 * (ser[latest][co] - ser[prev][co]) / ser[prev][co] if prev and ser[latest].get(co) is not None and ser[prev].get(co) else None) for co in labs}
-        ds = sorted(ser, reverse=True)
-        if len(ds) >= 8:
-            lastn = {co: sum(ser[d].get(co, 0) for d in ds[:4]) for co in labs}
-            prior = {co: sum(ser[d].get(co, 0) for d in ds[4:8]) for co in labs}
-            rows["growth"] = {co: (100 * (lastn[co] - prior[co]) / prior[co] if prior[co] and co in (data[m][ds[0]] or {}) else None) for co in labs}
+        rows["wow"] = {co: (100 * (ser[latest][co] - ser[prev][co]) / ser[prev][co]
+                            if prev in ser and ser[latest].get(co) is not None and ser[prev].get(co) else None) for co in labs}
+        week = lambda k: (ld - timedelta(days=7 * k)).isoformat()
+        if all(week(k) in ser for k in range(8)):
+            lastn = {co: sum(ser[week(k)].get(co, 0) for k in range(4)) for co in labs}
+            prior = {co: sum(ser[week(k)].get(co, 0) for k in range(4, 8)) for co in labs}
+            rows["growth"] = {co: (100 * (lastn[co] - prior[co]) / prior[co] if prior[co] and co in ser[latest] else None) for co in labs}
         dev[m] = rows
 
     apps = []
@@ -702,8 +749,12 @@ def build(con):
 
         def g(metric):
             return data.get(metric, {}).get(now, {}).get(key) or None
+        rr = [d for d in dates if (data.get("app_review_rate", {}).get(d, {}).get(key) or 0) > 0 and (datetime.fromisoformat(now) - datetime.fromisoformat(d)).days <= 14]
+        rr_day = rr[-1] if rr else None  # newest good review reading, when today's feed came back empty
         apps.append({"name": name, "lab": lab, "as_of": now, "ratings": rs[now][key], "gained_7d": gained, "stars": g("app_stars"),
-                     "rank": g("app_rank"), "prod_rank": g("app_prodrank"), "review_rate": g("app_review_rate"), "review_stars": g("app_review_stars")})
+                     "rank": g("app_rank"), "prod_rank": g("app_prodrank"),
+                     "review_rate": data["app_review_rate"][rr_day][key] if rr_day else None,
+                     "review_stars": data["app_review_stars"][rr_day][key] if rr_day else None, "review_asof": rr_day})
 
     manual = json.loads(MANUAL.read_text()) if MANUAL.exists() else {}
     return {
@@ -712,7 +763,7 @@ def build(con):
         "ramp": manual.get("ramp_ai_index"), "dev": dev, "apps": apps,
         "attention": kv_get(con, "attention"), "arena": kv_get(con, "arena"), "polymarket": kv_get(con, "polymarket"),
         "radar": kv_get(con, "radar"), "openrouter": kv_get(con, "openrouter"),
-        "pm_names": PM_NAMES,
+        "pm_names": PM_NAMES, "names": name_lists(),
     }
 
 
@@ -733,6 +784,7 @@ def main():
                 log("WARNING: no GitHub token, pull-request search will fail")
             collect_pypi(con, windows)
             collect_npm(con, windows)
+            collect_hf(con, today)
             con.commit()
             collect_prs(con, windows)
         if "apps" in only:
