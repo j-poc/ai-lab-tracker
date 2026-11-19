@@ -1,7 +1,7 @@
 {
   "ramp_ai_index": {
     "source": "https://ramp.com/data/ai-index",
-    "retrieved": "2026-11-15",
+    "retrieved": "2026-11-19",
     "verified_by_hand": false,
     "adoption": {
       "label": "Share of Ramp customers paying for the vendor",
@@ -23,24 +23,25 @@
     },
     "token_spend": {
       "label": "Share of token spend",
-      "period": "week ending 2026-11-01",
-      "prior_period": "week ending 2026-10-04",
+      "period": "week ending 2026-11-15",
+      "prior_period": "week ending 2026-10-18",
       "values": {
-        "anthropic": 49.3,
-        "openai": 46.1,
+        "anthropic": 58.7,
+        "openai": 37.2,
         "xai": 2.4,
         "meta": null
       },
       "prior": {
-        "anthropic": 53.2,
-        "openai": 42.3,
-        "xai": 2.5,
+        "anthropic": 56.9,
+        "openai": 38.5,
+        "xai": 2.2,
         "meta": null
       },
       "others": {
-        "Google": 1.7
+        "Google": 1.4,
+        "Cursor": 0.1
       }
     },
-    "note": "Meta is not reported by Ramp. Figures read from the Ramp page on 2026-11-15 in two separate fetches that agreed; not yet compared by eye in a browser."
+    "note": "Meta is not reported by Ramp. Adoption and token spend were read on 2026-11-19 from the table in the Ramp page's own HTML and agree with the page's summary text. Ramp says historical token estimates are revised when a business connects a new provider, so older readings can differ."
   }
 }

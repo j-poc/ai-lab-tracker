@@ -31,12 +31,16 @@ MANUAL = HERE / "manual.json"
 COMPANIES = {"anthropic": "Anthropic", "openai": "OpenAI", "xai": "xAI (SpaceXAI)", "meta": "Meta"}
 COLORS = {"anthropic": "#D97757", "openai": "#10A37F", "xai": "#E5B93C", "meta": "#4C8DF6"}
 
+# Every official package of each lab, summed, except a package that needs another counted package. Those installs already show in the
+# base package, so adding them would count them twice (checked in the registries on 2026-11-19): openai-agents needs openai;
+# @openai/agents needs openai; @openai/codex-sdk needs @openai/codex; @anthropic-ai/claude-agent-sdk lists @anthropic-ai/sdk as a
+# peer, which npm installs too. Those four are left out. The remaining overlap is unknown, for example llama-stack needs openai.
 # Every official package of each lab, summed. Agent SDKs and coding-agent CLIs count too, so no lab is judged by one package only.
 # A package that depends on another one (openai-agents needs openai) adds to both counts, so these are installs, not users.
-PYPI = {"anthropic": ["anthropic", "claude-agent-sdk", "claude-code-sdk"], "openai": ["openai", "openai-agents", "openai-codex"], "xai": ["xai-sdk"],
+PYPI = {"anthropic": ["anthropic", "claude-agent-sdk", "claude-code-sdk"], "openai": ["openai", "openai-codex"], "xai": ["xai-sdk"],
         "meta": ["llama-api-client", "llama-models", "llama-stack-client", "llama-stack"]}
-NPM = {"anthropic": ["@anthropic-ai/sdk", "@anthropic-ai/claude-code", "@anthropic-ai/claude-agent-sdk"],
-       "openai": ["openai", "@openai/codex", "@openai/agents", "@openai/codex-sdk"],
+NPM = {"anthropic": ["@anthropic-ai/sdk", "@anthropic-ai/claude-code"],
+       "openai": ["openai", "@openai/codex"],
        "xai": ["@xai-official/grok"],  # Grok Build CLI, published by x.ai (@ai-sdk/xai is Vercel's, not counted); xai-sdk is on PyPI
        "meta": ["llama-api-client", "llama-stack-client"]}
 # Agent platforms. Two tiers, because a coding agent and a general computer agent are not the same product.
@@ -62,12 +66,23 @@ PR_SERIES = [("anthropic", "claude/", "agent_prs"), ("openai", "codex/", "agent_
 STAR_REPOS_OPEN = {"openai": "openai/gpt-oss", "xai": "xai-org/grok-1", "meta": "meta-llama/llama"}  # Grok-1 is the only xAI open-weights repo and is old
 STAR_REPOS_AGENT = {"ag_claude_code": "anthropics/claude-code", "ag_codex": "openai/codex", "ag_grok_build": "xai-org/grok-build"}
 
+# Where each coding agent is installed besides npm. VS Code Marketplace and Open VSX give all-time installs of the lab's own extension;
+# Homebrew gives installs of the lab's own cask in the last 30 days. Grok Build and Muse Code have no verified entry in these.
+CHANNEL_VSCODE = {"ag_claude_code": "anthropic.claude-code", "ag_codex": "openai.chatgpt"}
+CHANNEL_BREW = {"ag_claude_code": "claude-code", "ag_codex": "codex"}
+# Open job postings from the public job-board APIs of each lab's own hiring system. Meta has no public API of this kind.
+JOBS = {"anthropic": ("greenhouse", "anthropic"), "xai": ("greenhouse", "xai"), "openai": ("ashby", "openai")}
+
 # Arena (formerly LMArena) human-preference leaderboards. Official dataset, CC BY 4.0.
 ARENA_URL = "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset/resolve/main/{cfg}/latest-00000-of-00001.parquet"
 ARENA_BOARDS = [  # key -> (title, dataset config, category)
     ("text", "Text, overall", "text", "overall"),
     ("coding", "Text, coding", "text", "coding"),
     ("webdev", "WebDev", "webdev", "overall"),
+    ("vision", "Vision", "vision", "overall"),
+    ("image", "Image generation", "text_to_image", "overall"),
+    ("video", "Video generation", "text_to_video", "overall"),
+    ("search", "Search", "search", "overall"),
 ]
 ARENA_ORGS = {"anthropic": "anthropic", "openai": "openai", "xai": "xai", "meta": "meta"}
 
@@ -90,6 +105,7 @@ APPS = {  # key -> (App Store id, lab, name)
     "muse": (6760173601, "meta", "Muse from Meta"),
     "claudeduet": (6803276000, "anthropic", "Claude Duet"),
 }
+APP_COUNTRIES = ["gb", "de", "in", "jp", "br"]  # Apple's public top-free chart returns the top 100 only for these countries
 PRODUCTS = {  # key -> (name, lab, Hacker News phrase, YouTube query, words the video title must contain)
     "grokbot": ("Grok Bot", "xai", ["Grok Bot", "GrokBot"], ["Grok Bot", "GrokBot"], ("grok bot", "grokbot")),
     "claudecode": ("Claude + Claude Code", "anthropic", ["Claude"], ["Claude AI", "Claude Code", "Claude Opus", "Claude Fable"], ()),
@@ -102,21 +118,26 @@ PRODUCTS = {  # key -> (name, lab, Hacker News phrase, YouTube query, words the 
 # coding agents. No people, and no generic word that means something else too. News uses a GDELT OR query; Hacker News
 # and YouTube count each name and remove duplicates; Wikipedia sums the listed articles.
 # Cursor (owned by SpaceXAI since Aug 2026) is NOT counted in xAI.
+# Hacker News name rule, the same for every lab (tested 2026-11-19 on the last 7 days of Hacker News):
+# a name of two or more words counts. A single common word counts only if, in a sample of at least 30 posts, at least 85% had AI words
+# next to it. Passed: Fable 89%, Mythos 85%, Codex 89%, Astra 90%, Sol 94%, Luna 95%, Terra 96%. Failed: Muse 71%, Llama 67%, Grok 70%.
+# The failed names are left out of the main count for every lab and shown as a separate "with bare names" upper bound (HN_BARE).
+HN_BARE = {"xai": ["Grok"], "meta": ["Llama", "Muse"]}
 ALIASES = {
     "anthropic": {"news": '(Anthropic OR "Claude Code" OR "Claude Opus" OR "Claude Sonnet" OR "Claude Haiku" OR "Claude AI" OR "Claude Fable" OR "Claude Mythos" OR "Claude Cowork")',
                   "hn": ["Anthropic", "Claude", "Fable", "Mythos"],
                   "yt": ["Anthropic", "Claude AI", "Claude Code", "Claude Opus", "Claude Sonnet", "Claude Fable", "Claude Mythos", "Claude Cowork"],
                   "wiki": ["Anthropic", "Claude_(AI)", "Claude_(language_model)", "Claude_Code", "Claude_Fable", "Claude_Mythos", "Claude_Cowork"]},
     "openai": {"news": '(OpenAI OR ChatGPT OR "OpenAI Codex" OR "Codex CLI" OR "GPT-5" OR "GPT-6" OR "gpt-oss")',
-               "hn": ["OpenAI", "ChatGPT", "Codex", "GPT-5", "GPT-6", "gpt-oss"],
+               "hn": ["OpenAI", "ChatGPT", "Codex", "GPT-5", "GPT-6", "gpt-oss", "Astra", "Sol", "Luna", "Terra"],
                "yt": ["OpenAI", "ChatGPT", "Codex", "GPT-5", "GPT-6", "ChatGPT Work"],
                "wiki": ["OpenAI", "ChatGPT", "OpenAI_Codex", "GPT-5", "GPT-6", "GPT-6_Astra"]},
     "xai": {"news": '(Grok OR SpaceXAI OR "SpaceX AI" OR "Grok Bot" OR "Grok Build" OR "Grok Imagine" OR Grokipedia)',
-            "hn": ["Grok", "SpaceXAI", "SpaceX AI", "xAI", "Grokipedia"],
+            "hn": ["SpaceXAI", "SpaceX AI", "xAI", "Grokipedia", "Grok Bot", "Grok Build", "Grok Imagine", "Grok 4", "Grok 5"],
             "yt": ["Grok", "SpaceXAI", "Grok Bot", "Grokipedia", "Grok Build", "Grok Imagine"],
             "wiki": ["SpaceXAI", "XAI_(company)", "Grok_(chatbot)", "Grokipedia", "Grok_Build"]},
     "meta": {"news": '("Meta AI" OR "Muse Spark" OR "Muse Wonder" OR "Muse Code" OR "Muse Charm" OR "Meta Muse" OR "Meta Superintelligence" OR "Meta Llama" OR "Llama 4")',
-             "hn": ["Meta AI", "Muse Spark", "Muse Wonder", "Muse Code", "Muse Charm", "Muse Ember", "Meta Muse", "Meta Superintelligence", "Meta Llama", "Llama 3", "Llama 4"],
+             "hn": ["Meta AI", "Muse Spark", "Muse Wonder", "Muse Code", "Muse Charm", "Muse Ember", "Muse Glimmer", "Meta Muse", "Meta Superintelligence", "Meta Llama", "Llama 3", "Llama 4"],
              "yt": ["Meta AI", "Muse Spark", "Muse Wonder", "Muse Code", "Muse Charm", "Meta Muse", "Meta Llama", "Llama 4", "Meta Superintelligence"],
              "wiki": ["Meta_AI", "Llama_(language_model)", "Meta_Superintelligence_Labs", "Muse_(language_model)", "Muse_(AI_agent)", "Muse_Spark", "Muse_Wonder", "Muse_Code"]},
 }
@@ -219,10 +240,10 @@ def week_windows(n):
 # ---------- developer usage ----------
 def pkg_migrate(con):
     """One time: the package lists grew from one package per lab to all official packages, so old sums are not comparable."""
-    if kv_get(con, "pkg_family_v2"):
+    if kv_get(con, "pkg_family_v3"):
         return
     con.execute("DELETE FROM metrics WHERE metric IN ('pypi', 'npm')")
-    kv_put(con, "pkg_family_v2", True)
+    kv_put(con, "pkg_family_v3", True)
     con.commit()
     log("package totals reset to the all-official-packages lists")
 
@@ -300,6 +321,53 @@ def collect_stars(con, today):
             except Exception as ex:
                 log(f"stars {repo} FAILED: {ex}")
     log("stars done")
+
+
+def post_json(url, body, headers):
+    req = urllib.request.Request(url, data=json.dumps(body).encode(), headers={"User-Agent": "ai-lab-tracker", "Content-Type": "application/json", **headers})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read())
+
+
+def collect_channels(con, today):
+    """Installs of each coding agent outside npm: VS Code Marketplace, Open VSX (all time) and Homebrew (30 days)."""
+    for key, ext in CHANNEL_VSCODE.items():
+        try:
+            d = post_json("https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery",
+                          {"filters": [{"criteria": [{"filterType": 7, "value": ext}]}], "flags": 914},
+                          {"Accept": "application/json;api-version=7.1-preview.1"})
+            e = d["results"][0]["extensions"][0]
+            if f'{e["publisher"]["publisherName"]}.{e["extensionName"]}'.lower() != ext:
+                raise RuntimeError("extension id mismatch")
+            put(con, today, key, "vscode_installs", int(next(s["value"] for s in e["statistics"] if s["statisticName"] == "install")))
+        except Exception as ex:
+            log(f"vscode {ext} FAILED: {ex}")
+        try:
+            ns, name = ext.split(".")
+            put(con, today, key, "openvsx_downloads", int(http_json(f"https://open-vsx.org/api/{ns}/{name}")["downloadCount"]))
+        except Exception as ex:
+            log(f"openvsx {ext} FAILED: {ex}")
+    try:
+        items = {i["cask"]: int(str(i["count"]).replace(",", "")) for i in http_json("https://formulae.brew.sh/api/analytics/cask-install/30d.json")["items"]}
+        for key, cask in CHANNEL_BREW.items():
+            if cask in items:
+                put(con, today, key, "brew_30d", items[cask])
+    except Exception as ex:
+        log(f"homebrew FAILED: {ex}")
+    log("channels done")
+
+
+def collect_jobs(con, today):
+    for lab, (kind, slug) in JOBS.items():
+        try:
+            if kind == "greenhouse":
+                n = len(http_json(f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs")["jobs"])
+            else:
+                n = len(http_json(f"https://api.ashbyhq.com/posting-api/job-board/{slug}")["jobs"])
+            put(con, today, lab, "jobs_open", n)
+        except Exception as ex:
+            log(f"jobs {lab} FAILED: {ex}")
+    log("jobs done")
 
 
 def collect_prs(con, windows):
@@ -426,7 +494,30 @@ def collect_openrouter(con):
                 if x is not None:
                     put(con, w, lab, "openrouter_share", x)
         latest = weeks[-1]
-        kv_put(con, "openrouter", {"weeks": weeks, "share": share, "tokens": tokens, "total": totals,
+        # most-used model of each lab in the newest week, with its list price (US dollars per 1M tokens)
+        favs = {}
+        for slug, n in by_week[latest].items():
+            lab = owner.get(slug.split("/")[0]) if slug != "other" else None
+            if lab and n > favs.get(lab, ("", 0))[1]:
+                favs[lab] = (slug, n)
+        models = {}
+        try:
+            for m in http_json("https://openrouter.ai/api/v1/models", retries=1)["data"]:
+                models[m.get("canonical_slug")] = m
+        except Exception as ex:
+            log(f"openrouter model list FAILED: {ex}")
+        fav_out = {}
+        for lab, (slug, n) in favs.items():
+            m = models.get(slug) or {}
+            pr = m.get("pricing") or {}
+            def per_m(x):
+                try:
+                    return round(float(x) * 1e6, 3)
+                except (TypeError, ValueError):
+                    return None
+            fav_out[lab] = {"slug": slug, "name": m.get("name") or slug, "share": round(100 * n / totals[-1], 2),
+                            "in_price": per_m(pr.get("prompt")), "out_price": per_m(pr.get("completion"))}
+        kv_put(con, "openrouter", {"top_models": fav_out, "weeks": weeks, "share": share, "tokens": tokens, "total": totals,
                                    "top_authors": [[a, round(100 * n / totals[-1], 1)] for a, n in top[latest]], "as_of": res["meta"].get("as_of", latest)[:10]})
         log(f"openrouter ok ({weeks[0]} to {latest})")
     except Exception as ex:
@@ -461,8 +552,17 @@ def collect_apps(con, today):
         prod = http_json("https://itunes.apple.com/us/rss/topfreeapplications/limit=200/genre=6007/json")["feed"]["entry"]
         r_all = {e["id"]["attributes"]["im:id"]: i for i, e in enumerate(overall, 1)}
         r_prod = {e["id"]["attributes"]["im:id"]: i for i, e in enumerate(prod, 1)}
+        country_ranks = {}
+        for cc in APP_COUNTRIES:
+            try:
+                feed = http_json(f"https://itunes.apple.com/{cc}/rss/topfreeapplications/limit=200/json")["feed"]["entry"]
+                country_ranks[cc] = {e["id"]["attributes"]["im:id"]: i for i, e in enumerate(feed, 1)}
+            except Exception as ex:
+                log(f"apps chart {cc} FAILED: {ex}")
         for key, (tid, _lab, _name) in APPS.items():
             r = info.get(str(tid), {})
+            for cc, rk in country_ranks.items():
+                put(con, today, key, "app_rank_" + cc, rk.get(str(tid), 0))
             put(con, today, key, "app_ratings", r.get("userRatingCount", 0))
             put(con, today, key, "app_stars", r.get("averageUserRating", 0))
             put(con, today, key, "app_rank", r_all.get(str(tid), 0))
@@ -711,6 +811,9 @@ def collect_attention(con):
         part(row, old, "wiki", "wiki", lambda: [sum(wiki_views(t, end - timedelta(days=6), end) for t in al["wiki"]),
                                                  sum(wiki_views(t, end - timedelta(days=13), end - timedelta(days=7)) for t in al["wiki"])])
         part(row, old, "hn", "hn", lambda: [hn_union(al["hn"], cur_a, cur_b), hn_union(al["hn"], pri_a, pri_b)])
+        if lab in HN_BARE:
+            both = al["hn"] + HN_BARE[lab]
+            part(row, old, "hn", "hn_bare", lambda: [hn_union(both, cur_a, cur_b), hn_union(both, pri_a, pri_b)])
         if key:
             part(row, old, "yt", "yt", lambda: yt_row(yt_state, yt_hist, f"lab:{lab}", al["yt"], today))
         def reddit():
@@ -754,7 +857,7 @@ def collect_polymarket(con):
     try:
         d = http_json("https://gamma-api.polymarket.com/public-search?q=best%20ai%20model&limit_per_type=10&events_status=active")
         now = datetime.now(timezone.utc).isoformat()
-        evs = [e for e in d.get("events", []) if e.get("slug", "").startswith("which-company-has") and e.get("endDate", "") > now]
+        evs = [e for e in d.get("events", []) if e.get("slug", "").startswith("which-company-has") and "livebench" not in e["slug"] and e.get("endDate", "") > now]
         evs.sort(key=lambda e: e["endDate"])
         out = []
         for ev in (evs[0] if evs else None, next((e for e in evs if "end-of-20" in e["slug"]), None)):
@@ -801,7 +904,7 @@ def build(con):
     labs = list(COMPANIES)
 
     dev = {}
-    for m in ("pypi", "npm", "hf_downloads", "hf_likes", "gh_stars_open", "agent_prs", "agent_prs_cursor"):
+    for m in ("pypi", "npm", "hf_downloads", "hf_likes", "gh_stars_open", "jobs_open", "agent_prs", "agent_prs_cursor"):
         ser = data.get(m, {})
         if not ser:
             continue
@@ -840,6 +943,7 @@ def build(con):
         rr_day = rr[-1] if rr else None  # newest good review reading, when today's feed came back empty
         apps.append({"name": name, "lab": lab, "as_of": now, "ratings": rs[now][key], "gained_7d": gained, "stars": g("app_stars"),
                      "rank": g("app_rank"), "prod_rank": g("app_prodrank"),
+                     "countries": {cc: data.get("app_rank_" + cc, {}).get(now, {}).get(key) for cc in APP_COUNTRIES},
                      "review_rate": data["app_review_rate"][rr_day][key] if rr_day else None,
                      "review_stars": data["app_review_stars"][rr_day][key] if rr_day else None, "review_asof": rr_day})
 
@@ -856,6 +960,16 @@ def build(con):
             np_ = (datetime.fromisoformat(nl).date() - timedelta(days=7)).isoformat()
             r["npm"] = [npm[nl].get(k), npm.get(np_, {}).get(k)]
             r["npm_asof"] = nl
+        def pair7(metric):
+            ser = data.get(metric, {})
+            ds = sorted(d for d in ser if k in ser[d])
+            if not ds:
+                return None
+            prev_d = (datetime.fromisoformat(ds[-1]).date() - timedelta(days=7)).isoformat()
+            return [ser[ds[-1]][k], ser.get(prev_d, {}).get(k)]
+        for fld, metric in (("vscode", "vscode_installs"), ("openvsx", "openvsx_downloads"), ("brew", "brew_30d")):
+            if pair7(metric):
+                r[fld] = pair7(metric)
         st = data.get("gh_stars", {})
         if k in STAR_REPOS_AGENT and st:
             sl = max(d for d in st if k in st[d])
@@ -901,6 +1015,8 @@ def main():
             collect_npm(con, windows)
             collect_hf(con, today)
             collect_stars(con, today)
+            collect_channels(con, today)
+            collect_jobs(con, today)
             con.commit()
             collect_prs(con, windows)
         if "apps" in only:
