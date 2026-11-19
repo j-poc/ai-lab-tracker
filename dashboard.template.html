@@ -167,7 +167,7 @@ function rampChart(id, tId, sId, blk) {
 if (R) {
   rampChart('ramp1', 'r1t', 'r1s', R.adoption);
   rampChart('ramp2', 'r2t', 'r2s', R.token_spend);
-  $('rampnote').innerHTML = 'Solid bar = latest period. Faded bar = the period before. Ramp counts only businesses that use Ramp, and its page says it likely understates adoption. Source: <a href="' + esc(R.source) + '">ramp.com/data/ai-index</a>, read ' + esc(R.retrieved) + '.';
+  $('rampnote').innerHTML = 'Solid bar = latest period. Faded bar = the period before. Ramp counts only businesses that use Ramp. Source: <a href="' + esc(R.source) + '">ramp.com/data/ai-index</a>, read ' + esc(R.retrieved) + '.';
 }
 
 // ---------- Developer usage ----------
@@ -271,7 +271,7 @@ if (AR) {
     options:{maintainAspectRatio:false, plugins:{legend:{position:'bottom'}, tooltip:{callbacks:{label:t => { const b = AR[keys[t.dataIndex]].labs[labs[t.datasetIndex]]; return t.dataset.label + ': ' + t.parsed.y + ' behind (' + (b ? b.model + ', rank #' + b.rank : '') + ')'; }}}}, scales:{y:{beginAtZero:true, grace:'10%'}}}});
   $('arenanote').textContent = 'Points between each lab\u2019s best model and the top model on the board, from any lab. 0 means the lab holds the top spot. Lower is better. About 35 points is a 55% win rate in a head-to-head vote.';
   const d0 = AR[keys[0]];
-  $('arenanote').textContent = 'Points behind the best model on each board. A lab\'s newest model may not be on every board yet, so a big gap can mean "not tested yet" and not "worse". Boards are not comparable with each other.';
+  $('arenanote').textContent = 'Points behind the best model on each board. Boards are not comparable with each other.';
   $('arenaasof').textContent = 'Snapshot ' + d0.date + '. Rank is among ' + keys.map(k => AR[k].models + ' models on ' + AR[k].title).join(', ') + '. Top model overall: ' + d0.top.model + ' (' + d0.top.org + ').';
   $('arenatbl').innerHTML = '<tr><th class="l">Lab</th>' + keys.map(k => '<th class="l">' + esc(AR[k].title) + '</th>').join('') + '</tr>' +
     labs.map(l => '<tr><td class="l"><span class="dot" style="background:' + D.colors[l] + '"></span>' + esc(D.companies[l]) + '</td>' + keys.map(k => { const b = AR[k].labs[l]; return '<td class="l">' + (b ? esc(b.model) + '<br><span class="mute">#' + b.rank + ', Elo ' + b.rating + '</span>' : '<span class="mute">n/a</span>') + '</td>'; }).join('') + '</tr>').join('');
