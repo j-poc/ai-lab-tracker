@@ -614,19 +614,26 @@ def wiki_views(title, a, b):
 
 
 def gdelt_share(query, end):
-    """Mean daily share of monitored news volume. Returns (last 7 days, prior 7 days)."""
-    u = "https://api.gdeltproject.org/api/v2/doc/doc?mode=timelinevol&format=json&timespan=16d&query=" + urllib.parse.quote(query)
+    """Mean daily share of monitored news volume. Returns (last 7 days, prior 7 days, last day used).
+    GDELT sometimes lags by a day or two, and today's day is partial, so the windows end on the newest full day it has (at most 3 days late)."""
+    u = "https://api.gdeltproject.org/api/v2/doc/doc?mode=timelinevol&format=json&timespan=20d&query=" + urllib.parse.quote(query)
     pts = http_json(u, retries=3, wait429=30)["timeline"][0]["data"]
     by_day = {}
     for p in pts:
         by_day.setdefault(p["date"][:8], []).append(p["value"])
-    days = {d: sum(v) / len(v) for d, v in by_day.items()}
-    last = [days.get((end - timedelta(days=i)).strftime("%Y%m%d")) for i in range(7)]
-    prior = [days.get((end - timedelta(days=i)).strftime("%Y%m%d")) for i in range(7, 14)]
+    days = {datetime.strptime(d, "%Y%m%d").date(): sum(v) / len(v) for d, v in by_day.items()}
+    days.pop(utc_today(), None)  # today is partial
+    if not days:
+        raise RuntimeError("no days")
+    last_day = min(end, max(days))
+    if (end - last_day).days > 3:
+        raise RuntimeError(f"newest day is {last_day}")
+    last = [days.get(last_day - timedelta(days=i)) for i in range(7)]
+    prior = [days.get(last_day - timedelta(days=i)) for i in range(7, 14)]
     last, prior = [x for x in last if x is not None], [x for x in prior if x is not None]
     if len(last) < 5 or len(prior) < 5:
         raise RuntimeError("not enough days")
-    return sum(last) / len(last), sum(prior) / len(prior)
+    return sum(last) / len(last), sum(prior) / len(prior), last_day
 
 
 def collect_attention(con):
@@ -704,7 +711,10 @@ def collect_attention(con):
             row["reddit"], row["reddit_subs"] = old["reddit"], old.get("reddit_subs")
         if "news" in parts:
             try:
-                row["news"] = list(gdelt_share(al["news"], end))
+                nl, npr, nday = gdelt_share(al["news"], end)
+                row["news"] = [nl, npr]
+                if nday != end:
+                    row["news_asof"] = nday.isoformat()  # GDELT is a day or two behind
             except Exception as ex:
                 log(f"gdelt {lab} FAILED: {str(ex)[:100]}")
                 if old.get("news"):  # GDELT limits request rates; keep the last good value and say so

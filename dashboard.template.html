@@ -221,7 +221,7 @@ if (A) {
   $('rdts').textContent = 'Posts per week in the communities where each lab\'s users gather: ' + Object.keys(L).map(l => D.companies[l] + ': ' + Object.keys(L[l].reddit_subs || {}).map(s => 'r/' + s).join(', ')).join(' | ') + '. Counts activity, not opinion. Bigger communities post more, so read the change, not only the height. Solid = last 7 days.';
   $('hnlabs').textContent = 'Stories and comments with any of: ' + NAMES.hn + '. Each item counted once. Solid = last 7 days.';
   const stale = labs.filter(l => L[l] && L[l].news_asof).map(l => D.companies[l] + ' (as of ' + L[l].news_asof + ')');
-  $('newss').textContent = 'GDELT, all monitored news. Percent of articles that mention any of: ' + NAMES.news + '. Solid = last 7 days.' + (stale.length ? ' Old value kept because GDELT limited requests: ' + stale.join(', ') + '.' : '');
+  $('newss').textContent = 'GDELT, all monitored news. Percent of articles that mention any of: ' + NAMES.news + '. Solid = last 7 days.' + (stale.length ? ' GDELT data ends earlier for: ' + stale.join(', ') + ' (its newest day, or an old value kept when GDELT limited requests).' : '');
   $('wikis').textContent = 'English Wikipedia daily views, summed over: ' + NAMES.wiki + '. Grok Bot has no article of its own. Solid = last 7 days.';
   $('atttbl').innerHTML = '<tr><th class="l">Product</th><th>Hacker News mentions</th><th>YouTube videos found</th><th>YouTube views (top 50)</th><th class="l">Most-viewed video this week</th></tr>' +
     prods.map(k => { const r = P[k] || {}; const y = r.yt, h = r.hn;
