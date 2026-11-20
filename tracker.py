@@ -314,12 +314,16 @@ def collect_hf(con, today):
 
 def collect_stars(con, today):
     """GitHub stars of each lab's open-model repository and each coding agent's repository."""
+    meta = kv_get(con, "repo_meta", {}) or {}
     for metric, repos in (("gh_stars_open", STAR_REPOS_OPEN), ("gh_stars", STAR_REPOS_AGENT)):
         for key, repo in repos.items():
             try:
-                put(con, today, key, metric, int(gh_json(f"repos/{repo}")["stargazers_count"]))
+                d = gh_json(f"repos/{repo}")
+                put(con, today, key, metric, int(d["stargazers_count"]))
+                meta[key] = {"repo": repo, "created": (d.get("created_at") or "")[:10], "pushed": (d.get("pushed_at") or "")[:10]}
             except Exception as ex:
                 log(f"stars {repo} FAILED: {ex}")
+    kv_put(con, "repo_meta", meta)
     log("stars done")
 
 
@@ -991,7 +995,7 @@ def build(con):
         "companies": COMPANIES, "colors": COLORS, "products": {k: {"name": v[0], "lab": v[1]} for k, v in PRODUCTS.items()},
         "ramp": manual.get("ramp_ai_index"), "dev": dev, "apps": apps,
         "attention": kv_get(con, "attention"), "arena": kv_get(con, "arena"), "polymarket": kv_get(con, "polymarket"),
-        "radar": kv_get(con, "radar"), "openrouter": kv_get(con, "openrouter"),
+        "radar": kv_get(con, "radar"), "repo_meta": kv_get(con, "repo_meta"), "openrouter": kv_get(con, "openrouter"),
         "pm_names": PM_NAMES, "names": name_lists(), "agents": agents,
     }
 
