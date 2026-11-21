@@ -961,6 +961,7 @@ def build(con):
         "ramp": manual.get("ramp_ai_index"), "dev": dev, "apps": apps,
         "attention": kv_get(con, "attention"), "arena": kv_get(con, "arena"), "polymarket": kv_get(con, "polymarket"),
         "radar": kv_get(con, "radar"), "repo_meta": kv_get(con, "repo_meta"), "openrouter": kv_get(con, "openrouter"),
+        "yt_agent_comparison": kv_get(con, "yt_agent_comparison"),
         "pm_names": PM_NAMES, "names": name_lists(), "agents": agents,
     }
 

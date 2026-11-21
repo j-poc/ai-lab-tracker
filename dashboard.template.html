@@ -72,6 +72,11 @@ a{color:inherit}
   <div class="grid">
     <div class="card"><h3>Agent platforms, Hacker News mentions</h3><p>Stories and comments that name the agent. Solid = last 7 days. Faded = the 7 days before. Names with * are general agents, the rest are coding agents.</p><div class="chart"><canvas id="agh"></canvas></div></div>
     <div class="card"><h3>Agent platforms, YouTube views</h3><p>Views today of videos published in the last 7 days with the agent name in the title. Solid = now. Faded = the same measure 7 days ago, which appears after a week of daily runs. Names with * are general agents.</p><div class="chart"><canvas id="agy"></canvas></div></div>
+    <section class="card wide" id="youtube-comparison" hidden>
+      <h3>YouTube agents by publication week</h3>
+      <p id="ytWeekNote"></p>
+      <div class="scroll"><table id="ytWeekTable"></table></div>
+    </section>
     <div class="card wide"><h3>Agent platform detail</h3><p id="agnote"></p><div class="scroll"><table id="agtbl"></table></div></div>
   </div>
 
@@ -228,6 +233,25 @@ if (A) {
   $('atttbl').innerHTML = '<tr><th class="l">Product</th><th>Hacker News mentions</th><th>YouTube videos found</th><th>YouTube views</th><th class="l">Most-viewed video this week</th></tr>' +
     prods.map(k => { const r = P[k] || {}; const y = r.yt, h = r.hn;
       return '<tr><td>' + dot(D.colors[D.products[k].lab]) + esc(D.products[k].name) + '</td><td>' + (h ? fmt(h[0]) + pct(chg(h[0], h[1])) : '–') + '</td><td>' + (y ? y.videos[0] : '–') + '</td><td>' + (y ? fmt(y.views[0]) + pct(chg(y.views[0], y.views[1])) : '–') + '</td><td class="l">' + (y && y.top ? esc(y.top.title.slice(0, 70)) + ' <span class="mute">(' + esc(y.top.channel) + ', ' + fmt(y.top.views) + ')</span>' : '–') + '</td></tr>'; }).join('');
+}
+
+const comparison = D.yt_agent_comparison;
+if (comparison) {
+  const [prior, recent] = comparison.weeks.map(esc);
+  $('ytWeekNote').textContent = 'YouTube view counts on ' + comparison.read + '. Videos from the earlier week had seven more days to gain views. Each sample uses up to 50 search results per name and duration group. Each video counts once per agent.';
+  $('ytWeekTable').innerHTML = '<thead><tr><th class="l" rowspan="2">Agent</th>' +
+    '<th colspan="2">' + prior + '</th><th colspan="2">' + recent + '</th><th colspan="2">Change</th></tr>' +
+    '<tr><th>Videos</th><th>Views</th><th>Videos</th><th>Views</th><th>Videos</th><th>Views</th></tr></thead><tbody>' +
+    comparison.rows.map(row => {
+      const [before, after] = row.videos;
+      const [oldViews, newViews] = row.views;
+      const difference = after - before;
+      return '<tr><th scope="row" class="l">' + dot(D.colors[row.lab]) + esc(row.agent) + '</th><td>' +
+        before + '</td><td>' + oldViews.toLocaleString() + '</td><td>' + after + '</td><td>' + newViews.toLocaleString() +
+        '</td><td>' + (difference > 0 ? '+' : '') + difference + '</td><td>' +
+        (oldViews ? pct(chg(newViews, oldViews)) : '—') + '</td></tr>';
+    }).join('') + '</tbody>';
+  $('youtube-comparison').hidden = false;
 }
 
 // ---------- Agent platforms ----------
