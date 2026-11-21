@@ -649,7 +649,7 @@ def yt_row(st, hist, rowkey, names, today):
     h[today.isoformat()] = [len(cur), sum(r[0] for r in cur)]
     for d in [d for d in h if (today - datetime.fromisoformat(d).date()).days > 40]:
         del h[d]
-    prior = next((h[d] for d in ((today - timedelta(days=b)).isoformat() for b in (7, 6, 8)) if d in h), None)
+    prior = h.get((today - timedelta(days=7)).isoformat())
     top = {"views": cur[0][0], "title": cur[0][1], "channel": cur[0][2]} if cur else None
     return {"videos": [len(cur), prior[0] if prior else None], "views": [sum(r[0] for r in cur), prior[1] if prior else None],
             "top": top, "asof": end.isoformat()}
@@ -961,7 +961,6 @@ def build(con):
         "ramp": manual.get("ramp_ai_index"), "dev": dev, "apps": apps,
         "attention": kv_get(con, "attention"), "arena": kv_get(con, "arena"), "polymarket": kv_get(con, "polymarket"),
         "radar": kv_get(con, "radar"), "repo_meta": kv_get(con, "repo_meta"), "openrouter": kv_get(con, "openrouter"),
-        "yt_agent_comparison": kv_get(con, "yt_agent_comparison"),
         "pm_names": PM_NAMES, "names": name_lists(), "agents": agents,
     }
 
