@@ -53,7 +53,7 @@ AGENTS = {
     "ag_muse_code": ("Muse Code", "meta", "coding", ["Muse Code"], ["Muse Code"], []),
     "ag_cowork": ("Claude Cowork", "anthropic", "general", ["Claude Cowork"], ["Claude Cowork"], []),
     "ag_chatgpt_work": ("ChatGPT Work", "openai", "general", ["ChatGPT Work"], ["ChatGPT Work"], []),
-    "ag_grok_bot": ("Grok Bot", "xai", "general", ["Grok Bot", "GrokBot"], ["Grok Bot"], []),
+    "ag_grok_bot": ("Grok Bot", "xai", "general", ["Grok Bot", "GrokBot"], ["Grok Bot", "GrokBot"], []),
     "ag_muse": ("Meta Muse agent", "meta", "general", ["Meta Muse"], ["Meta Muse"], []),
 }
 AGENT_PR_LAB = {"ag_claude_code": "anthropic", "ag_codex": "openai"}  # lab series whose branch prefix is this agent's own
@@ -124,21 +124,21 @@ PRODUCTS = {  # key -> (name, lab, Hacker News phrase, YouTube query, words the 
 # The failed names are left out of the main count for every lab and shown as a separate "with bare names" upper bound (HN_BARE).
 HN_BARE = {"xai": ["Grok"], "meta": ["Llama", "Muse"]}
 ALIASES = {
-    "anthropic": {"news": '(Anthropic OR "Claude Code" OR "Claude Opus" OR "Claude Sonnet" OR "Claude Haiku" OR "Claude AI" OR "Claude Fable" OR "Claude Mythos" OR "Claude Cowork")',
+    "anthropic": {"news": '(Anthropic OR "Claude Code" OR "Claude Opus" OR "Claude Sonnet" OR "Claude Haiku" OR "Claude AI" OR "Claude Fable" OR "Claude Mythos" OR "Claude Cowork" OR "Claude Duet")',
                   "hn": ["Anthropic", "Claude", "Fable", "Mythos"],
-                  "yt": ["Anthropic", "Claude AI", "Claude Code", "Claude Opus", "Claude Sonnet", "Claude Fable", "Claude Mythos", "Claude Cowork"],
+                  "yt": ["Anthropic", "Claude AI", "Claude Code", "Claude Opus", "Claude Sonnet", "Claude Fable", "Claude Mythos", "Claude Cowork", "Claude Duet", "Claude Haiku"],
                   "wiki": ["Anthropic", "Claude_(AI)", "Claude_(language_model)", "Claude_Code", "Claude_Fable", "Claude_Mythos", "Claude_Cowork"]},
-    "openai": {"news": '(OpenAI OR ChatGPT OR "OpenAI Codex" OR "Codex CLI" OR "GPT-5" OR "GPT-6" OR "gpt-oss")',
+    "openai": {"news": '(OpenAI OR ChatGPT OR "OpenAI Codex" OR "Codex CLI" OR "GPT-5" OR "GPT-6" OR "gpt-oss" OR "ChatGPT Work")',
                "hn": ["OpenAI", "ChatGPT", "Codex", "GPT-5", "GPT-6", "gpt-oss", "Astra", "Sol", "Luna", "Terra"],
-               "yt": ["OpenAI", "ChatGPT", "Codex", "GPT-5", "GPT-6", "ChatGPT Work"],
+               "yt": ["OpenAI", "ChatGPT", "Codex", "GPT-5", "GPT-6", "ChatGPT Work", "gpt-oss"],
                "wiki": ["OpenAI", "ChatGPT", "OpenAI_Codex", "GPT-5", "GPT-6", "GPT-6_Astra"]},
-    "xai": {"news": '(Grok OR SpaceXAI OR "SpaceX AI" OR "Grok Bot" OR "Grok Build" OR "Grok Imagine" OR Grokipedia)',
-            "hn": ["SpaceXAI", "SpaceX AI", "xAI", "Grokipedia", "Grok Bot", "Grok Build", "Grok Imagine", "Grok 4", "Grok 5"],
-            "yt": ["Grok", "SpaceXAI", "Grok Bot", "Grokipedia", "Grok Build", "Grok Imagine"],
+    "xai": {"news": '(Grok OR GrokBot OR SpaceXAI OR "SpaceX AI" OR "Grok Bot" OR "Grok Build" OR "Grok Imagine" OR Grokipedia)',
+            "hn": ["SpaceXAI", "SpaceX AI", "xAI", "GrokBot", "Grok AI", "Grok chatbot", "Grokipedia", "Grok Bot", "Grok Build", "Grok Imagine", "Grok 4", "Grok 5"],
+            "yt": ["Grok", "GrokBot", "SpaceX AI", "xAI", "SpaceXAI", "Grok Bot", "Grokipedia", "Grok Build", "Grok Imagine"],
             "wiki": ["SpaceXAI", "XAI_(company)", "Grok_(chatbot)", "Grokipedia", "Grok_Build"]},
-    "meta": {"news": '("Meta AI" OR "Muse Spark" OR "Muse Wonder" OR "Muse Code" OR "Muse Charm" OR "Meta Muse" OR "Meta Superintelligence" OR "Meta Llama" OR "Llama 4")',
-             "hn": ["Meta AI", "Muse Spark", "Muse Wonder", "Muse Code", "Muse Charm", "Muse Ember", "Muse Glimmer", "Meta Muse", "Meta Superintelligence", "Meta Llama", "Llama 3", "Llama 4"],
-             "yt": ["Meta AI", "Muse Spark", "Muse Wonder", "Muse Code", "Muse Charm", "Meta Muse", "Meta Llama", "Llama 4", "Meta Superintelligence"],
+    "meta": {"news": '("Meta AI" OR "Muse Spark" OR "Muse Wonder" OR "Muse Code" OR "Muse Ember" OR "Muse Glimmer" OR "Muse from Meta" OR "Muse Charm" OR "Meta Muse" OR "Meta Superintelligence" OR "Meta Llama" OR "Llama 4")',
+             "hn": ["Meta AI", "Muse from Meta", "Muse Spark", "Muse Wonder", "Muse Code", "Muse Charm", "Muse Ember", "Muse Glimmer", "Meta Muse", "Meta Superintelligence", "Meta Llama", "Llama 3", "Llama 4"],
+             "yt": ["Meta AI", "Muse from Meta", "Muse Spark", "Muse Wonder", "Muse Code", "Muse Charm", "Muse Ember", "Muse Glimmer", "Meta Muse", "Meta Llama", "Llama 4", "Meta Superintelligence"],
              "wiki": ["Meta_AI", "Llama_(language_model)", "Meta_Superintelligence_Labs", "Muse_(language_model)", "Muse_(AI_agent)", "Muse_Spark", "Muse_Wonder", "Muse_Code"]},
 }
 YT_EXCLUDE = {"Codex": ("warhammer", "40k")}  # bare "Codex" is also a Warhammer 40k book; titles with these words do not count
