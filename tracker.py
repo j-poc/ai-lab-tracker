@@ -590,93 +590,60 @@ def iso(d):
 YT_MAX_SEARCHES = 85  # per run. YouTube allows about 100 searches a day, and the title and view lookups need some quota too
 
 
-def yt_search_day(name, day, length, key):
-    """One YouTube search: videos with this name published on one UTC day, one length class, most-viewed first (top 50).
-    Returns [[id, title, channel], ...] for the videos whose title has the name. medium = 4-20 min, long = 20+ min, so Shorts never count."""
-    a = datetime.combine(day, datetime.min.time(), timezone.utc)
-    b = a + timedelta(days=1)
-    excl = YT_EXCLUDE.get(name, ())
-    q = chr(34) + name + chr(34) + "".join(" -" + w for w in excl)
-    s = http_json("https://www.googleapis.com/youtube/v3/search?part=id&type=video&maxResults=50&order=viewCount"
-                  f"&videoDuration={length}&q={urllib.parse.quote(q)}&publishedAfter={iso(a)}&publishedBefore={iso(b)}&key={key}")
-    ids = [x["id"]["videoId"] for x in s.get("items", [])]
+def yt_search_week(name, end, length, key):
+    """Get the top 50 search results for one name and duration in seven complete UTC days."""
+    start = datetime.combine(end - timedelta(days=6), datetime.min.time(), timezone.utc)
+    stop = start + timedelta(days=7)
+    exclude = YT_EXCLUDE.get(name, ())
+    query = f'"{name}"' + "".join(" -" + word for word in exclude)
+    url = ("https://www.googleapis.com/youtube/v3/search?part=id&type=video&maxResults=50&order=viewCount"
+           f"&videoDuration={length}&q={urllib.parse.quote(query)}&publishedAfter={iso(start)}&publishedBefore={iso(stop)}&key={key}")
+    items = http_json(url)["items"]
+    ids = [item["id"]["videoId"] for item in items]
     if not ids:
         return []
-    v = http_json(f"https://www.googleapis.com/youtube/v3/videos?part=snippet&id={','.join(ids)}&key={key}")["items"]
-    out = []
-    for x in v:
-        t = x["snippet"]["title"]
-        tl = t.lower().replace("grokking", "")  # "grokking" is not Grok
-        if name.lower() in tl and not any(w in tl for w in excl):
-            out.append([x["id"], t, x["snippet"]["channelTitle"]])
-    return out
+    items = http_json(f"https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id={','.join(ids)}&key={key}")["items"]
+    videos = []
+    for item in items:
+        title = item["snippet"]["title"]
+        text = title.lower().replace("grokking", "")
+        if name.lower() in text and not any(word in text for word in exclude):
+            count = item["statistics"].get("viewCount")
+            if count is not None:
+                videos.append([item["id"], int(count), title, item["snippet"]["channelTitle"]])
+    return videos
 
 
 def yt_collect(con, key, end, names):
-    """Rolling 7-day YouTube window that ends yesterday. Saved per name, per day and per length class, so each day only the
-    newest day is new. Views are refreshed every run for every video in the window. The search quota is small, so a run stops
-    at the first quota error and the next run continues. The window is shown only when every name has all 7 days (state['ready'])."""
-    con.execute("DELETE FROM kv WHERE key='yt_units'")  # the older weekly cache is not used any more
-    st = kv_get(con, "yt2", {}) or {}
-    days, views = st.setdefault("days", {}), st.setdefault("views", {})
-    window = [end - timedelta(days=i) for i in range(7)]
-    new = 0
-    stopped = False
-    for d in window:  # newest day first, for every name
-        for n in names:
-            for ln in ("medium", "long"):
-                k = f"{n}|{d.isoformat()}|{ln}"
-                if k in days or stopped:
-                    continue
-                if new >= YT_MAX_SEARCHES:
-                    stopped = True
-                    log(f"yt: {YT_MAX_SEARCHES} searches done for this run; the next run continues")
-                    continue
-                try:
-                    days[k] = yt_search_day(n, d, ln, key)
-                    new += 1
-                    kv_put(con, "yt2", st)  # save after every search, so a stop loses nothing
-                    con.commit()
-                except RuntimeError as ex:
-                    if "quota exhausted" in str(ex):
-                        stopped = True
-                        log(f"yt: quota used up after {new} new searches; the next run continues")
-                    else:
-                        log(f"yt {k} FAILED: {str(ex)[:100]}")
-    first = window[-1].isoformat()
-    for k in [k for k in days if k.split("|")[1] < (window[-1] - timedelta(days=1)).isoformat() or k.split("|")[0] not in names]:
-        del days[k]  # keep the window and one day before it
-    ids = sorted({v[0] for k, vs in days.items() if k.split("|")[1] >= first for v in vs})
-    for i in range(0, len(ids), 50):  # refresh views: 1 quota unit per 50 videos
+    state = kv_get(con, "yt_weekly", {}) or {}
+    if state.get("end") != end.isoformat():
+        state = {"end": end.isoformat(), "results": {}}
+    results = state["results"]
+    missing = [(name, length) for name in names for length in ("medium", "long")
+               if f"{name}|{length}" not in results]
+    for name, length in missing[:YT_MAX_SEARCHES]:
         try:
-            for x in http_json(f"https://www.googleapis.com/youtube/v3/videos?part=statistics&id={','.join(ids[i:i + 50])}&key={key}")["items"]:
-                views[x["id"]] = int(x["statistics"].get("viewCount", 0))
+            results[f"{name}|{length}"] = yt_search_week(name, end, length, key)
         except RuntimeError as ex:
-            log(f"yt views FAILED: {str(ex)[:100]}")
-            break
-    keep = {v[0] for vs in days.values() for v in vs}
-    for vid in [v for v in views if v not in keep]:
-        del views[vid]
-    st["ready"] = all(f"{n}|{d.isoformat()}|{ln}" in days for n in names for d in window for ln in ("medium", "long"))
-    st["end"] = end.isoformat()
-    kv_put(con, "yt2", st)
-    log(f"yt: {new} new searches, window {'complete' if st['ready'] else 'still filling'}, {len(ids)} videos refreshed")
-    return st
+            log(f"YouTube search failed for {name}: {ex}")
+            if "quota exhausted" in str(ex):
+                break
+            continue
+        kv_put(con, "yt_weekly", state)
+        con.commit()
+    state["ready"] = all(f"{name}|{length}" in results for name in names for length in ("medium", "long"))
+    return state
 
 
 def yt_row(st, hist, rowkey, names, today):
-    """Dashboard row for one lab, product or agent: videos published in the 7 days to yesterday that have any of the names in the
-    title, duplicates once, with their views as of today. The comparison is the same row as it was 7 days ago, so both numbers
-    have the same video ages. None until the window is complete."""
     if not st.get("ready"):
         return None
     end = datetime.fromisoformat(st["end"]).date()
     seen = {}
-    for n in names:
-        for i in range(7):
-            for ln in ("medium", "long"):
-                for vid, title, ch in st["days"][f"{n}|{(end - timedelta(days=i)).isoformat()}|{ln}"]:
-                    seen[vid] = (st["views"].get(vid, 0), title, ch)
+    for name in names:
+        for length in ("medium", "long"):
+            for video, views, title, channel in st["results"][f"{name}|{length}"]:
+                seen[video] = (views, title, channel)
     cur = sorted(seen.values(), reverse=True)
     h = hist.setdefault(rowkey, {})
     h[today.isoformat()] = [len(cur), sum(r[0] for r in cur)]
@@ -768,13 +735,13 @@ def collect_attention(con):
     parts = set(os.environ.get("ATT_PARTS", "hn,yt,wiki,news,reddit").split(","))  # re-collect only some parts
     prev = kv_get(con, "attention") or {}
     if not key:
+        parts.discard("yt")
         log("NOTE: YOUTUBE_API_KEY not set, skipping YouTube")
     today = utc_today()
     out["yt_window"] = prev.get("yt_window")  # replaced below when the new rolling window is complete
-    yt_state, yt_hist = {}, kv_get(con, "yt_hist", {}) or {}
+    yt_state, yt_hist = {}, kv_get(con, "yt_weekly_hist", {}) or {}
     if key and "yt" in parts:
-        # One search per name per day, shared by the lab rows, the product rows and the agent rows. One OR search returns the top 50
-        # matches of all names together, and most of them do not have a name in the title, so totals would be far too low.
+        # Reuse each weekly search across all lab, product, and agent rows.
         names = sorted({n for al in ALIASES.values() for n in al["yt"]} | {n for pv in PRODUCTS.values() if pv[3] for n in pv[3]}
                        | {n for ag in AGENTS.values() for n in ag[4]})
         yt_state = yt_collect(con, key, end, names)
@@ -800,15 +767,14 @@ def collect_attention(con):
     for pk, (name, lab, hn_q, yt_q, must) in PRODUCTS.items():
         row, old = {"name": name, "lab": lab}, (prev.get("products") or {}).get(pk, {})
         part(row, old, "hn", "hn", lambda: [hn_union(hn_q, cur_a, cur_b), hn_union(hn_q, pri_a, pri_b)])
-        if key and yt_q:
+        if yt_q:
             part(row, old, "yt", "yt", lambda: yt_row(yt_state, yt_hist, f"prod:{pk}", yt_q, today))
         out["products"][pk] = row
     out["agents"] = {}
     for ak, (aname, alab, tier, ahn, ayt, _pk) in AGENTS.items():
         row, old = {"name": aname, "lab": alab, "tier": tier}, (prev.get("agents") or {}).get(ak, {})
         part(row, old, "hn", "hn", lambda: [hn_union(ahn, cur_a, cur_b), hn_union(ahn, pri_a, pri_b)])
-        if key:
-            part(row, old, "yt", "yt", lambda: yt_row(yt_state, yt_hist, f"ag:{ak}", ayt, today))
+        part(row, old, "yt", "yt", lambda: yt_row(yt_state, yt_hist, f"ag:{ak}", ayt, today))
         out["agents"][ak] = row
     for lab, al in ALIASES.items():
         row, old = {}, (prev.get("labs") or {}).get(lab, {})
@@ -818,8 +784,7 @@ def collect_attention(con):
         if lab in HN_BARE:
             both = al["hn"] + HN_BARE[lab]
             part(row, old, "hn", "hn_bare", lambda: [hn_union(both, cur_a, cur_b), hn_union(both, pri_a, pri_b)])
-        if key:
-            part(row, old, "yt", "yt", lambda: yt_row(yt_state, yt_hist, f"lab:{lab}", al["yt"], today))
+        part(row, old, "yt", "yt", lambda: yt_row(yt_state, yt_hist, f"lab:{lab}", al["yt"], today))
         def reddit():
             subs = {r: [reddit_posts(r, end - timedelta(days=6), end), reddit_posts(r, end - timedelta(days=13), end - timedelta(days=7))] for r in REDDIT[lab]}
             row["reddit_subs"] = subs
@@ -852,7 +817,7 @@ def collect_attention(con):
                 row["news_asof"] = old["news_asof"]
         out["labs"][lab] = row
     kv_put(con, "attention", out)
-    kv_put(con, "yt_hist", yt_hist)
+    kv_put(con, "yt_weekly_hist", yt_hist)
     log("attention ok")
 
 
@@ -895,7 +860,7 @@ def last_date(series):
 def name_lists():
     """The names each panel counts, written from the same lists the collectors use, so the page text cannot drift from the code."""
     def join(f):
-        return " | ".join(", ".join(f(al)) for al in ALIASES.values())
+        return " | ".join(f"{COMPANIES[lab]}: " + ", ".join(f(aliases)) for lab, aliases in ALIASES.items())
     news = lambda al: [x.strip().strip('"') for x in re.sub(r"[()]", "", al["news"]).split(" OR ")]
     return {"yt": join(lambda al: al["yt"]), "hn": join(lambda al: al["hn"]), "news": join(news),
             "wiki": join(lambda al: [w.replace("_", " ") for w in al["wiki"]]),
