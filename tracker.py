@@ -1002,7 +1002,7 @@ def main():
             collect_openrouter(con)
         con.commit()
     payload = build(con)
-    page = TEMPLATE.read_text().replace("__DATA__", json.dumps(payload))
+    page = TEMPLATE.read_text().replace("__DATA__", json.dumps(payload).replace("<", "\\u003c"))
     OUT.write_text(page)
     site = OUT.parent / "site"
     site.mkdir(exist_ok=True)

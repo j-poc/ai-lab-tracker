@@ -10,10 +10,14 @@ concurrency:
   cancel-in-progress: false
 jobs:
   refresh:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Load the latest saved history when this job starts.
+          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -34,6 +38,8 @@ jobs:
           git diff --cached --quiet || git commit -m "Daily data refresh"
           git pull --rebase  # a code push during the run must not lose the day's data
           git push
+      - name: Build from saved history
+        run: python tracker.py --no-collect
       - name: Deploy to Cloudflare
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

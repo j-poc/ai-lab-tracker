@@ -7,3 +7,9 @@ Free Python. It uses only the standard library, plus pyarrow for the optional Ar
 - `.github/workflows/refresh.yml` runs it every day and deploys `site/` to Cloudflare (Workers static assets, `wrangler.jsonc`). Live page: https://evoa-ai-lab-tracker.fundamental-integrity-web.workers.dev
 - `manual.json` holds the Ramp AI Index numbers. Update it once a month from https://ramp.com/data/ai-index.
 - Names that count for each lab are in `ALIASES` in `tracker.py`. Add new product names there.
+
+## Public launch
+
+Keep all four labs, the source dates, and the limits for each measure. Show the current YouTube counts while the tracker collects the matching week. The first match can appear on November 28, 2026.
+
+Build with the saved history. Run the refresh from main. Check that it saves history and deploys. Open the public page and check the date, agent counts, and source links.

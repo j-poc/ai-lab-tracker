@@ -1,4 +1,5 @@
 <title>AI Lab Tracker</title>
+<meta name="description" content="Compare public signals for Anthropic, OpenAI, xAI, and Meta. See the source, date, and limits for each measure.">
 <meta charset="utf-8">
 <meta name="claude:viewport-fit-sides" content="cover">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -7,7 +8,7 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121211;--card:#1b1b19;--ink:#ecece8;--mute:#9a9a93;--line:#2c2c29;--grey:#6f6f69;--up:#3ec98a;--down:#f07a7a;--warn-bg:#2b2511;--warn-ink:#e9d594;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#121211;--card:#1b1b19;--ink:#ecece8;--mute:#9a9a93;--line:#2c2c29;--grey:#6f6f69;--up:#3ec98a;--down:#f07a7a;--warn-bg:#2b2511;--warn-ink:#e9d594;color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
 .wrap{max-width:1100px;margin:0 auto;padding-block:28px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 h1{font-size:26px;margin:0 0 2px;letter-spacing:-.015em}
 h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:var(--mute);margin:34px 0 4px;font-weight:600}
@@ -37,22 +38,19 @@ td.l,th.l{text-align:left}
 .up{color:var(--up)}.down{color:var(--down)}.mute{color:var(--mute)}
 .note{font-size:12.5px;color:var(--mute);margin-top:10px}
 a{color:inherit}
+a:focus-visible,.scroll:focus-visible{outline:2px solid currentColor;outline-offset:3px}
 @media (max-width:760px){.lead{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
 </style>
 <div class="wrap">
   <h1>AI Lab Tracker</h1>
   <div class="sub" id="sub"></div>
-  <div class="read"><strong>How to read this page</strong>
-    <ul>
-      <li>There is no single score. Each panel measures one thing, from one public source, with its date.</li>
-      <li>A lab can lead one panel and trail another. That split is the result.</li>
-      <li>X (Twitter) is not measured. Grok is used heavily there, so Grok's reach is likely understated.</li>
-    </ul>
-  </div>
+  <p>Public data on spending, developer activity, and model quality for Anthropic, OpenAI, xAI, and Meta.</p>
+  <p class="read">Each section has its own measure and date. <a href="#sources">See sources and limits</a>.</p>
+  <noscript><p>Enable JavaScript to show the charts and tables.</p></noscript>
   <div class="lead" id="lead"></div>
 
   <h2 class="sec">Money</h2>
-  <p class="sec-sub">What businesses on Ramp pay for. It shows spending, not attention, which is why it is worth reading. It is not all US businesses: Ramp customers lean toward tech-aware companies. The figures were typed in by hand from Ramp&rsquo;s page, with the date shown.</p>
+  <p class="sec-sub">Spending by US businesses on Ramp. The charts show the share that pays each vendor and the share of token spending.</p>
   <div class="grid">
     <div class="card"><h3 id="r1t"></h3><p id="r1s"></p><div class="chart"><canvas id="ramp1"></canvas></div></div>
     <div class="card"><h3 id="r2t"></h3><p id="r2s"></p><div class="chart"><canvas id="ramp2"></canvas></div></div>
@@ -62,7 +60,7 @@ a{color:inherit}
   <h2 class="sec">Developer usage</h2>
   <p class="sec-sub">What developers build with. Downloads are a proxy: they count installs, not use.</p>
   <div class="grid">
-    <div class="card"><h3>Agent pull requests per week</h3><p>Pull requests opened from the default branch prefix of each cloud coding agent: <code>claude/</code>, <code>codex/</code> and <code>cursor/</code>. Cursor is owned by SpaceXAI since Aug 2026, so its dashed line is shown under xAI, but Cursor runs models from several labs, so read it as ownership, not as xAI model use. xAI&rsquo;s own Grok Bot has no verified prefix. Meta has none. The <code>claude/</code> line steps up from about 23 Sep 2026: daily pull requests went from about 35,000 to about 65,000 within a few days. This is right after the date in the Claude Opus 5.5 model ID (21 Sep 2026), so a model release is the likely cause, but we have not verified it. Read the step as a one-time jump, not as steady growth. GitHub&rsquo;s own <code>copilot/</code> prefix is large too, but Copilot is not one of these four labs, so it is left out.</p><div class="chart"><canvas id="prs"></canvas></div></div>
+    <div class="card"><h3>Agent pull requests per week</h3><p>Pull requests opened from the default branch prefix of each cloud coding agent: <code>claude/</code>, <code>codex/</code> and <code>cursor/</code>. Cursor is owned by SpaceXAI since Aug 2026, so its dashed line is shown under xAI, but Cursor runs models from several labs, so read it as ownership, not as xAI model use. xAI&rsquo;s own Grok Bot has no verified prefix. Meta has none. The <code>claude/</code> line steps up from about 23 Sep 2026: daily pull requests went from about 35,000 to about 65,000 within a few days.  GitHub&rsquo;s own <code>copilot/</code> prefix is large too, but Copilot is not one of these four labs, so it is left out.</p><div class="chart"><canvas id="prs"></canvas></div></div>
     <div class="card"><h3>Growth: last 4 weeks vs the 4 weeks before</h3><p>Change in each signal. It ignores the total, so a young product is not penalized for its size.</p><div class="chart"><canvas id="growth"></canvas></div></div>
     <div class="card wide"><h3>Latest week</h3><p id="devasof"></p><div class="scroll"><table id="devtbl"></table></div></div>
   </div>
@@ -71,7 +69,7 @@ a{color:inherit}
   <p class="sec-sub" id="agsub"></p>
   <div class="grid">
     <div class="card"><h3>Agent platforms, Hacker News mentions</h3><p>Stories and comments that name the agent. Solid = last 7 days. Faded = the 7 days before. Names with * are general agents, the rest are coding agents.</p><div class="chart"><canvas id="agh"></canvas></div></div>
-    <div class="card"><h3>Agent platforms, YouTube views</h3><p>Views today of videos published in the last 7 days with the agent name in the title. Solid = now. Faded = the same measure 7 days ago, which appears after a week of daily runs. Names with * are general agents.</p><div class="chart"><canvas id="agy"></canvas></div></div>
+    <div class="card"><h3>Agent platforms, YouTube views</h3><p>Views of videos with the agent name in the title. The table below shows the dates. Faded bars show the previous week when a matching measurement exists. Names with * are general agents.</p><div class="chart"><canvas id="agy"></canvas></div></div>
     <section class="card wide" id="youtube-comparison" aria-labelledby="ytWeekTitle">
       <h3 id="ytWeekTitle">YouTube agents by publication week</h3>
       <p id="ytWeekNote"></p>
@@ -131,7 +129,7 @@ a{color:inherit}
     <div class="card"><h3 id="pm2t"></h3><p id="pm2s"></p><div class="chart"><canvas id="pm2"></canvas></div></div>
   </div>
 
-  <h2 class="sec">Sources and limits</h2>
+  <h2 class="sec" id="sources">Sources and limits</h2>
   <div class="grid"><div class="card wide"><div class="scroll"><table id="methods"></table></div>
     <div class="note" id="notmeasured"></div></div></div>
 </div>
@@ -220,7 +218,7 @@ if (A) {
   pairChart('ytl', labs, ln, lc, labs.map(l => L[l] && L[l].yt ? L[l].yt.views : null));
   pairChart('hnl', labs, ln, lc, labs.map(l => L[l] && L[l].hn ? L[l].hn : null));
   const ytw = A.yt_window ? 'Videos published ' + A.yt_window + ' (UTC)' : 'Videos published in the last 7 days';
-  $('ytlabs').textContent = ytw + ', with any of these in the title: ' + NAMES.yt + '. Views as of today. Up to 50 search results per name and duration group per week, duplicates counted once. Videos of 4 minutes or longer only. Solid = now. Faded = the same measure 7 days ago.';
+  $('ytlabs').textContent = ytw + ', with any of these in the title: ' + NAMES.yt + '. View counts from the daily refresh after that period. Up to 50 search results per name and duration group per week, duplicates counted once. Videos of 4 minutes or longer only. Solid = now. Faded = the same measure 7 days ago.';
   const ytHave = labs.filter(l => L[l] && L[l].yt).length;
   if (!ytHave) $('ytlabs').textContent = 'No YouTube data yet. The free YouTube search limit is small, so each daily run saves what it can and the next run continues.';
   else if (ytHave < labs.length || labs.some(l => L[l] && L[l].yt && L[l].yt.views[1] == null)) $('ytlabs').textContent += ' A faded bar appears when a comparable earlier measurement is available.';
@@ -251,7 +249,7 @@ if (latestYouTubeDay) {
   const snapshotRows = agk.map(k => AG[k].yt?.asof === latestYouTubeDay ? AG[k].yt : null);
   const waiting = snapshotRows.every(row => row?.views[1] == null);
   $('ytWeekNote').textContent = 'The daily refresh compares view counts saved one day after each publication week ends (UTC). ' +
-    (waiting ? 'The earlier week needs a saved measurement from that day. A dash shows missing data.' :
+    (waiting ? 'The earlier week has no saved count from that day. The table will show changes when both measurements are available.' :
       'Each sample uses up to 50 search results per name and duration group.');
   const count = value => value == null ? '—' : value.toLocaleString();
   $('ytWeekTable').innerHTML = '<thead><tr><th scope="col" class="l" rowspan="2">Agent</th>' +
@@ -365,7 +363,7 @@ const cards = [];
 if (R) { const t = leader(R.adoption.values); cards.push(['Money', D.companies[t], D.colors[t], R.adoption.values[t] + '% of Ramp customers pay (' + R.adoption.period + ')']); }
 if (dev.pypi && dev.npm) { const a = leader(dev.pypi.latest), b = leader(dev.npm.latest); cards.push(['Developer downloads', D.companies[a] + (a === b ? '' : ' / ' + D.companies[b]), D.colors[a], 'PyPI: ' + D.companies[a] + ', npm: ' + D.companies[b]]); }
 if ((D.apps || []).length) { const ranked = D.apps.filter(a => a.rank).sort((a, b) => a.rank - b.rank)[0]; if (ranked) cards.push(['Consumer app (US only)', ranked.name, D.colors[ranked.lab], 'US top-free rank #' + ranked.rank + '. Other countries are in the apps table']); }
-if (A) { const yv = {}; labs.forEach(l => { if (A.labs[l] && A.labs[l].yt) yv[l] = A.labs[l].yt.views[0]; }); const best = leader(yv); if (best) cards.push(['YouTube, last 7 days', D.companies[best], D.colors[best], fmt(yv[best]) + ' views, all names']); }
+if (A) { const yv = {}; labs.forEach(l => { if (A.labs[l] && A.labs[l].yt) yv[l] = A.labs[l].yt.views[0]; }); const best = leader(yv); if (best) cards.push(['YouTube views', D.companies[best], D.colors[best], fmt(yv[best]) + ' views · ' + A.yt_window]); }
 if (AR && AR.text) { const t = Object.keys(AR.text.labs).sort((a, b) => AR.text.labs[a].rank - AR.text.labs[b].rank)[0]; if (t) cards.push(['Model quality', D.companies[t], D.colors[t], 'Best Arena text rank #' + AR.text.labs[t].rank + ': ' + AR.text.labs[t].model]); }
 if (RD) { const best = labs.filter(l => RD.series[l] && RD.series[l].length).sort((a, b) => RD.series[a].slice(-1)[0] - RD.series[b].slice(-1)[0])[0]; if (best) cards.push(['Web traffic', D.companies[best], D.colors[best], '#' + RD.series[best].slice(-1)[0] + ' of Generative AI sites (Cloudflare Radar)']); }
 if (D.polymarket && D.polymarket.events[0]) { const ev = D.polymarket.events[0]; const n = Object.keys(ev.odds).sort((a, b) => ev.odds[b] - ev.odds[a])[0]; cards.push(['Market odds', n, rev[n] ? D.colors[rev[n]] : GREY, ev.odds[n].toFixed(0) + '% to have the best model, ' + ev.end]); }
@@ -374,8 +372,8 @@ $('lead').innerHTML = cards.map(c => '<div class="lc"><div class="k">' + esc(c[0
 // ---------- Methods ----------
 const as = k => (D.dev[k] ? D.dev[k].as_of : '–');
 const rows = [
-  ['Money', '<a href="https://ramp.com/data/ai-index">Ramp AI Index</a>', 'Share of Ramp customers (US businesses) that pay a vendor, and share of token spend', R ? R.adoption.period + '; tokens ' + R.token_spend.period : '–', 'Ramp customers only. Meta not reported. Page says it likely understates adoption.'],
-  ['Developer usage', '<a href="https://pypistats.org">PyPI Stats</a> and <a href="https://api.npmjs.org">npm API</a>', 'Weekly downloads of each lab\'s official SDK, agent and coding-agent packages, summed. Helper libraries such as tiktoken are left out. PyPI: anthropic, claude-agent-sdk, claude-code-sdk | openai, openai-codex | xai-sdk | llama-api-client, llama-models, llama-stack-client, llama-stack. npm: @anthropic-ai/sdk, @anthropic-ai/claude-code | openai, @openai/codex | @xai-official/grok (the Grok Build CLI, published by x.ai; Vercel\'s @ai-sdk/xai is not counted) | llama-api-client, llama-stack-client', 'Week ending ' + as('pypi'), 'Installs, not users. A package that needs another counted package is left out, so nothing is counted twice: openai-agents, @openai/agents and @openai/codex-sdk (they need openai or @openai/codex) and @anthropic-ai/claude-agent-sdk (npm also installs @anthropic-ai/sdk with it). Some overlap is left, for example llama-stack needs openai. All 12 weeks were recalculated with this rule. xAI and Meta are often called through the OpenAI SDK, so their numbers are undercounts, and Meta also ships open weights, which this does not show. CI installs inflate all.'],
+  ['Money', '<a href="https://ramp.com/data/ai-index">Ramp AI Index</a>', 'Share of Ramp customers (US businesses) that pay a vendor, and share of token spend', R ? R.adoption.period + '; tokens ' + R.token_spend.period : '–', 'Ramp reports data for its US customers. It has no separate figure for Meta.'],
+  ['Developer usage', '<a href="https://pypistats.org">PyPI Stats</a> and <a href="https://api.npmjs.org">npm API</a>', 'Weekly downloads of each lab\'s official SDK, agent and coding-agent packages, summed. Helper libraries such as tiktoken are left out. PyPI: anthropic, claude-agent-sdk, claude-code-sdk | openai, openai-codex | xai-sdk | llama-api-client, llama-models, llama-stack-client, llama-stack. npm: @anthropic-ai/sdk, @anthropic-ai/claude-code | openai, @openai/codex | @xai-official/grok (the Grok Build CLI, published by x.ai; Vercel\'s @ai-sdk/xai is not counted) | llama-api-client, llama-stack-client', 'Week ending ' + as('pypi'), 'Installs, not users. A package that needs another counted package is left out, to reduce duplicate counts: openai-agents, @openai/agents and @openai/codex-sdk (they need openai or @openai/codex) and @anthropic-ai/claude-agent-sdk (npm also installs @anthropic-ai/sdk with it). Some overlap is left, for example llama-stack needs openai. All 12 weeks were recalculated with this rule. xAI and Meta are often called through the OpenAI SDK, so their numbers are undercounts, and Meta also ships open weights, which this does not show. CI installs inflate all.'],
   ['Developer usage', '<a href="https://huggingface.co/docs/hub/api">Hugging Face Hub API</a>', 'Last-30-day downloads and all-time likes of each lab\'s own open-weight language model families: gpt-oss (organisation openai), Grok (xai-org), Llama (meta-llama); top 100 models of each organisation', 'Day ' + as('hf_downloads'), 'Open weights only. Anthropic publishes none. Downloads are a rolling 30 days, not 7, and count pulls, not users. Copies, quantised versions and fine-tunes by other people are left out for every lab, and so are other model types (CLIP, Whisper).'],
   ['Developer usage', '<a href="https://docs.github.com/en/rest/search">GitHub search API</a>', 'Pull requests whose branch starts with claude/, codex/ or cursor/', 'Week ending ' + as('agent_prs'), 'Default prefixes only. Renamed branches and local agent work are missed. Claude prefixes come from several Claude surfaces. cursor/ is Cursor, owned by SpaceXAI since Aug 2026, and is not the Grok Bot agent. GitHub search counts are approximate. Meta has no verified prefix. Branches that start with grok/ exist (about 1,500 PRs a week) but nothing shows that Grok Bot makes them, so they are not counted.'],
   ['Model quality', '<a href="https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset">Arena leaderboard dataset</a> (CC BY 4.0, by Arena / LMArena)', 'Best-rated model of each lab on seven boards (Text, Text coding, WebDev, Vision, Image generation, Video generation, Search), and its points behind the top model', AR ? AR.text.date : '\u2013', 'Human votes on chat and coding answers. Style and vote mix affect results. A lab can list many variants, and we show its best one. Scores are not comparable across boards. Snapshot dates can lag by days.'],
@@ -384,7 +382,7 @@ const rows = [
   ['Attention', '<a href="https://hn.algolia.com/api">Hacker News (Algolia)</a>', 'Stories and comments with any name of the lab or product, each item counted once', A ? A.window : '–', 'Developer audience. One rule for every lab. A name of two or more words counts. A single common word counts only if, in at least 30 posts from the last 7 days (checked 19 Nov 2026), at least 85% had AI words next to it. Counted: Fable 89%, Mythos 85%, Codex 89%, and OpenAI\'s Astra 90%, Sol 94%, Luna 95%, Terra 96%. Not counted: Grok 70%, Llama 67%, Muse 71%, and Cowork (only 11 posts). The test only looks for AI words near the name, so it is a rough screen and the real share of on-topic posts is a little lower. xAI and Meta are therefore lower bounds, and the page shows what the counts would be with the left-out words. YouTube names were not tested this way. OpenAI\'s Sora is not counted: OpenAI closed the app in April 2026 and the API in September 2026.'],
   ['Attention', '<a href="https://arctic-shift.photon-reddit.com">Reddit via Arctic Shift archive</a>', 'Posts per week in each lab\'s main subreddits', A ? A.window : '–', 'Community size drives the total, so the change matters more. Posts only, no comments. The archive can lag or miss removed posts. Reddit blocks direct automated reads, so a free archive is used.'],
   ['Attention', '<a href="https://wikimedia.org/api/rest_v1/">Wikimedia pageviews</a>', 'Daily views of several English articles per lab (company, products, models)', A ? A.window : '–', 'Grok Bot redirects to the Grok article, so it cannot be isolated.'],
-  ['Attention', '<a href="https://www.gdeltproject.org">GDELT</a>', 'Share of monitored news volume mentioning any name of each lab', A ? A.window : '–', 'Counts all mentions, positive or negative. Meta\'s Muse names are recent, and "Meta Llama" can match older Llama news. Cursor (owned by SpaceXAI since Aug 2026) is not counted under xAI. Every lab gets the same rule: company name, products, model families and coding agents, no people. Grok can also refer to the English verb. SpaceX alone can refer to spaceflight. The news query uses the AI company and product names listed above. GDELT rejects the short name "xAI" in quotes, so it is only used for Hacker News.'],
+  ['Attention', '<a href="https://www.gdeltproject.org">GDELT</a>', 'Share of monitored news volume mentioning any name of each lab', A ? A.window : '–', 'Counts all mentions, positive or negative. Meta\'s Muse names are recent, and "Meta Llama" can match older Llama news. Cursor (owned by SpaceXAI since Aug 2026) is not counted under xAI. Every lab gets the same rule: company name, products, model families and coding agents, no people. Grok can also refer to the English verb. SpaceX alone can refer to spaceflight. The news query uses the AI company and product names listed above. GDELT searches use SpaceXAI and SpaceX AI for the company name.'],
   ['Web traffic rank', '<a href="https://radar.cloudflare.com/ai-insights">Cloudflare Radar</a> internet services ranking', 'Daily rank of each lab\'s chat site among Generative AI services, last 28 days', RD ? RD.as_of : '–', 'Ranks sites by DNS lookups on Cloudflare\'s 1.1.1.1 resolver, so it is a proxy for web use. It is not a user count. Apps and API use may not be included. Only one Meta service (Meta AI) is ranked.'],
   ['GitHub stars', '<a href="https://docs.github.com/en/rest/repos/repos#get-a-repository">GitHub REST API</a>', 'All-time stars of one repository per coding agent (claude-code, codex, grok-build) and per open-weight lab (gpt-oss, Grok-1, Llama)', (D.agents.ag_codex && D.agents.ag_codex.stars_asof) || '–', 'A star is interest, not use. Stars of old repositories (Grok-1 from 2024, Llama) reflect launch hype. The 7-day change shows after 7 days of saved history. Muse Code has no public repository.'],
   ['Agent install channels', '<a href="https://learn.microsoft.com/en-us/azure/devops/extend/gallery/apis/overview">VS Code Marketplace gallery API</a>, <a href="https://open-vsx.org/swagger-ui/">Open VSX API</a>, <a href="https://formulae.brew.sh/analytics/">Homebrew analytics</a>', 'Installs of the lab\'s own VS Code extension (all time), downloads of the same extension on Open VSX (all time), installs of the lab\'s own Homebrew cask (30 days)', as('npm'), 'A different slice of use than npm: editors and Mac terminals. Homebrew only counts people who allow analytics. The 7-day change shows after 7 days of saved history. Grok Build and Muse Code have no verified entry.'],
