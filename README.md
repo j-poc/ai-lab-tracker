@@ -16,3 +16,7 @@ Build with the saved history. Run the refresh from main. Check that it saves his
 
 Keep the leader cards at the top of the page. Keep the source units, dates, and limits.
 Show only current YouTube counts until a match is available. Keep coding measures with coding agents. Check both YouTube states and the narrow layout before deployment.
+
+Sort the paired attention charts and detail tables by the latest count, largest first. Use views for YouTube and mentions for the agent detail tables. Keep previous counts with the same row. Put missing counts last. Check both chart periods and the live table order.
+
+Use the product for app and CLI measures. Use the company for news and developer package totals. Verify package and install sources. Show the news terms that match the saved counts.

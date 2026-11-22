@@ -11,7 +11,6 @@ Money data (Ramp AI Index) is hand-entered in manual.json with its source and da
 """
 import argparse
 import json
-import re
 import os
 import sqlite3
 import subprocess
@@ -42,9 +41,9 @@ PYPI = {"anthropic": ["anthropic", "claude-agent-sdk", "claude-code-sdk"], "open
 NPM = {"anthropic": ["@anthropic-ai/sdk", "@anthropic-ai/claude-code"],
        "openai": ["openai", "@openai/codex"],
        "xai": ["@xai-official/grok"],  # Grok Build CLI, published by x.ai (@ai-sdk/xai is Vercel's, not counted); xai-sdk is on PyPI
-       "meta": ["llama-api-client", "llama-stack-client"]}
+       "meta": ["llama-api-client", "llama-stack-client", "@muse-code/sdk"]}
 # Agent platforms. Two tiers, because a coding agent and a general computer agent are not the same product.
-# key -> (name, lab, tier, Hacker News phrases, YouTube names, npm packages of the CLI). Meta's Muse Code has no npm or PyPI package.
+# key -> (name, lab, tier, Hacker News phrases, YouTube names, npm packages for the CLI).
 # Branch-prefix pull requests are shown for claude/ and codex/ only: grok/ and muse/ branches are concentrated in a few accounts.
 AGENTS = {
     "ag_claude_code": ("Claude Code", "anthropic", "coding", ["Claude Code"], ["Claude Code"], ["@anthropic-ai/claude-code"]),
@@ -62,14 +61,13 @@ AGENT_PR_LAB = {"ag_claude_code": "anthropic", "ag_codex": "openai"}  # lab seri
 PR_SERIES = [("anthropic", "claude/", "agent_prs"), ("openai", "codex/", "agent_prs"), ("xai", "cursor/", "agent_prs_cursor")]
 
 # GitHub stars (all time), saved daily so the weekly gain shows after a week. One repository per row, chosen by hand.
-# Anthropic publishes no open weights, so it has no open-model repository. Muse Code has no public repository.
+# Anthropic has no tracked open-model repository. There is no verified Muse Code CLI repository.
 STAR_REPOS_OPEN = {"openai": "openai/gpt-oss", "xai": "xai-org/grok-1", "meta": "meta-llama/llama"}  # Grok-1 is the only xAI open-weights repo and is old
 STAR_REPOS_AGENT = {"ag_claude_code": "anthropics/claude-code", "ag_codex": "openai/codex", "ag_grok_build": "xai-org/grok-build"}
 
-# Where each coding agent is installed besides npm. VS Code Marketplace and Open VSX give all-time installs of the lab's own extension;
-# Homebrew gives installs of the lab's own cask in the last 30 days. Grok Build and Muse Code have no verified entry in these.
+# Use first-party extensions. Homebrew casks must install the vendor's release.
 CHANNEL_VSCODE = {"ag_claude_code": "anthropic.claude-code", "ag_codex": "openai.chatgpt"}
-CHANNEL_BREW = {"ag_claude_code": "claude-code", "ag_codex": "codex"}
+CHANNEL_BREW = {"ag_claude_code": "claude-code", "ag_codex": "codex", "ag_grok_build": "grok-build", "ag_muse_code": "muse-code"}
 # Open job postings from the public job-board APIs of each lab's own hiring system. Meta has no public API of this kind.
 JOBS = {"anthropic": ("greenhouse", "anthropic"), "xai": ("greenhouse", "xai"), "openai": ("ashby", "openai")}
 
@@ -140,6 +138,10 @@ ALIASES = {
              "hn": ["Meta AI", "Muse from Meta", "Muse Spark", "Muse Wonder", "Muse Code", "Muse Charm", "Muse Ember", "Muse Glimmer", "Meta Muse", "Meta Superintelligence", "Meta Llama", "Llama 3", "Llama 4"],
              "yt": ["Meta AI", "Muse from Meta", "Muse Spark", "Muse Wonder", "Muse Code", "Muse Charm", "Muse Ember", "Muse Glimmer", "Meta Muse", "Meta Llama", "Llama 4", "Meta Superintelligence"],
              "wiki": ["Meta_AI", "Llama_(language_model)", "Meta_Superintelligence_Labs", "Muse_(language_model)", "Muse_(AI_agent)", "Muse_Spark", "Muse_Wonder", "Muse_Code"]},
+}
+NEWS_ADDITIONS = {
+    "xai": ('xAI', 'SpaceXSI', '"SpaceX Super Intelligence"'),
+    "meta": ('"Llama 3"', '"Llama Stack"', '"Meta Model API"', '"Segment Anything Model"', '"Meta FAIR"'),
 }
 YT_EXCLUDE = {"Codex": ("warhammer", "40k")}  # bare "Codex" is also a Warhammer 40k book; titles with these words do not count
 # Reddit communities where each lab's users gather. Activity is counted as posts per week (Arctic Shift archive).
@@ -725,6 +727,16 @@ def gdelt_share(query, end):
     return sum(last) / len(last), sum(prior) / len(prior), last_day
 
 
+def read_lab_news(lab, end):
+    base = ALIASES[lab]["news"]
+    query = "(" + " OR ".join((base[1:-1], *NEWS_ADDITIONS.get(lab, ()))) + ")"
+    latest, prior, last_day = gdelt_share(query, end)
+    result = {"news": [latest, prior], "news_query": query}
+    if last_day != end:
+        result["news_asof"] = last_day.isoformat()
+    return result
+
+
 def collect_attention(con):
     end = utc_today() - timedelta(days=1)
     cur_a = datetime.combine(end - timedelta(days=6), datetime.min.time(), timezone.utc)
@@ -801,10 +813,7 @@ def collect_attention(con):
             row["reddit"], row["reddit_subs"] = old["reddit"], old.get("reddit_subs")
         if "news" in parts:
             try:
-                nl, npr, nday = gdelt_share(al["news"], end)
-                row["news"] = [nl, npr]
-                if nday != end:
-                    row["news_asof"] = nday.isoformat()  # GDELT is a day or two behind
+                row.update(read_lab_news(lab, end))
             except Exception as ex:
                 log(f"gdelt {lab} FAILED: {str(ex)[:100]}")
                 if old.get("news"):  # GDELT limits request rates; keep the last good value and say so
@@ -815,6 +824,8 @@ def collect_attention(con):
             row["news"] = old["news"]
             if "news_asof" in old:
                 row["news_asof"] = old["news_asof"]
+        if "news" in row:
+            row.setdefault("news_query", old.get("news_query", al["news"]))
         out["labs"][lab] = row
     kv_put(con, "attention", out)
     kv_put(con, "yt_weekly_hist", yt_hist)
@@ -857,12 +868,18 @@ def last_date(series):
     return max(series) if series else None
 
 
-def name_lists():
-    """The names each panel counts, written from the same lists the collectors use, so the page text cannot drift from the code."""
+def name_lists(attention):
+    """List the names each panel counts."""
     def join(f):
         return " | ".join(f"{COMPANIES[lab]}: " + ", ".join(f(aliases)) for lab, aliases in ALIASES.items())
-    news = lambda al: [x.strip().strip('"') for x in re.sub(r"[()]", "", al["news"]).split(" OR ")]
-    return {"yt": join(lambda al: al["yt"]), "hn": join(lambda al: al["hn"]), "news": join(news),
+    news = []
+    for lab, row in (attention or {}).get("labs", {}).items():
+        if "news" not in row:
+            continue
+        query = row.get("news_query", ALIASES[lab]["news"])
+        names = [term.strip('"') for term in query[1:-1].split(" OR ")]
+        news.append(f"{COMPANIES[lab]}: " + ", ".join(names))
+    return {"yt": join(lambda al: al["yt"]), "hn": join(lambda al: al["hn"]), "news": " | ".join(news),
             "wiki": join(lambda al: [w.replace("_", " ") for w in al["wiki"]]),
             "agents": " | ".join(a[0] if a[3] == [a[0]] else f"{a[0]} ({', '.join(a[3])})" for a in AGENTS.values()),
             "reddit": " | ".join(", ".join("r/" + r for r in REDDIT[lab]) for lab in ALIASES)}
@@ -918,11 +935,13 @@ def build(con):
 
     # Agent platforms: the attention rows (Hacker News, YouTube) plus each coding agent's own npm downloads and, for claude/ and codex/,
     # branch-prefix pull requests, both with the exact week before.
-    att = kv_get(con, "attention") or {}
+    attention = kv_get(con, "attention")
+    att = attention or {}
     agents = {}
     for k, (aname, alab, tier, _h, _y, pk) in AGENTS.items():
         r = dict((att.get("agents") or {}).get(k, {}))
-        r.update({"name": aname, "lab": alab, "tier": tier, "has_npm": bool(pk)})
+        r.update({"name": aname, "lab": alab, "tier": tier, "has_npm": bool(pk),
+                  "has_editor_extension": k in CHANNEL_VSCODE, "has_cli_repo": k in STAR_REPOS_AGENT})
         npm = data.get("npm", {})
         if pk and npm:
             nl = max(npm)
@@ -959,9 +978,9 @@ def build(con):
         "updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "companies": COMPANIES, "colors": COLORS, "products": {k: {"name": v[0], "lab": v[1]} for k, v in PRODUCTS.items()},
         "ramp": manual.get("ramp_ai_index"), "dev": dev, "apps": apps,
-        "attention": kv_get(con, "attention"), "arena": kv_get(con, "arena"), "polymarket": kv_get(con, "polymarket"),
+        "attention": attention, "arena": kv_get(con, "arena"), "polymarket": kv_get(con, "polymarket"),
         "radar": kv_get(con, "radar"), "repo_meta": kv_get(con, "repo_meta"), "openrouter": kv_get(con, "openrouter"),
-        "pm_names": PM_NAMES, "names": name_lists(), "agents": agents,
+        "pm_names": PM_NAMES, "names": name_lists(attention), "agents": agents,
     }
 
 
