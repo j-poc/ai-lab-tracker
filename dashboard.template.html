@@ -73,9 +73,17 @@ a:focus-visible,.scroll:focus-visible{outline:2px solid currentColor;outline-off
     <section class="card wide" id="youtube-comparison" aria-labelledby="ytWeekTitle">
       <h3 id="ytWeekTitle">YouTube agents by publication week</h3>
       <p id="ytWeekNote"></p>
-      <div class="scroll" tabindex="0" role="region" aria-labelledby="ytWeekTitle"><table id="ytWeekTable" aria-describedby="ytWeekNote"></table></div>
+      <div class="scroll" id="ytWeekResults" tabindex="0" role="region" aria-labelledby="ytWeekTitle" hidden><table id="ytWeekTable" aria-describedby="ytWeekNote"></table></div>
     </section>
-    <div class="card wide"><h3>Agent platform detail</h3><p id="agnote"></p><div class="scroll"><table id="agtbl"></table></div></div>
+    <section class="card wide" id="coding-agents" aria-labelledby="codingTitle" hidden>
+      <h3 id="codingTitle">Coding agents</h3><p id="agnote"></p>
+      <div class="scroll" tabindex="0" role="region" aria-labelledby="codingTitle"><table id="agtbl" aria-describedby="agnote"></table></div>
+    </section>
+    <section class="card wide" id="general-agents" aria-labelledby="generalTitle" hidden>
+      <h3 id="generalTitle">General agents</h3>
+      <p>Hacker News and YouTube counts include only mentions of the agent by name.</p>
+      <div class="scroll" tabindex="0" role="region" aria-labelledby="generalTitle"><table id="generalAgentTable"></table></div>
+    </section>
   </div>
 
   <div id="orsec" hidden>
@@ -247,28 +255,36 @@ if (latestYouTubeDay) {
     return day(offset - 6) + ' to ' + day(offset);
   };
   const snapshotRows = agk.map(k => AG[k].yt?.asof === latestYouTubeDay ? AG[k].yt : null);
-  const waiting = snapshotRows.every(row => row?.views[1] == null);
-  $('ytWeekNote').textContent = 'The daily refresh compares view counts saved one day after each publication week ends (UTC). ' +
-    (waiting ? 'The earlier week has no saved count from that day. The table will show changes when both measurements are available.' :
-      'Each sample uses up to 50 search results per name and duration group.');
-  const count = value => value == null ? '—' : value.toLocaleString();
-  $('ytWeekTable').innerHTML = '<thead><tr><th scope="col" class="l" rowspan="2">Agent</th>' +
-    '<th scope="colgroup" colspan="2">' + week(-7) + '</th><th scope="colgroup" colspan="2">' + week(0) + '</th>' +
-    '<th scope="colgroup" colspan="2">Change</th></tr>' +
-    '<tr><th scope="col">Videos</th><th scope="col">Views</th><th scope="col">Videos</th><th scope="col">Views</th>' +
-    '<th scope="col">Videos</th><th scope="col">Views</th></tr></thead><tbody>' +
+  const comparable = snapshotRows.some(row => row?.views[1] != null);
+  $('ytWeekNote').textContent = comparable
+    ? 'The tracker saves each view count one day after the publication week ends (UTC). Each sample uses up to 50 search results per name and duration group.'
+    : 'Videos published ' + week(0) + ' (UTC). The previous week needs a count at the same video age. The comparison appears when both counts are available.';
+  const count = value => value == null ? '<span class="mute">No reading</span>' : value.toLocaleString();
+  const metrics = '<th scope="col">Videos</th><th scope="col">Views</th>';
+  const group = title => '<th scope="colgroup" colspan="2">' + title + '</th>';
+  const head = comparable
+    ? '<tr><th scope="col" rowspan="2">Agent</th>' + group(week(-7)) + group(week(0)) + group('Change') +
+      '</tr><tr>' + metrics.repeat(3) + '</tr>'
+    : '<tr><th scope="col">Agent</th>' + metrics + '</tr>';
+  const groups = comparable ? '<colgroup></colgroup>' + '<colgroup span="2"></colgroup>'.repeat(3) : '';
+  $('ytWeekTable').innerHTML = groups + '<thead>' + head + '</thead><tbody>' +
     agk.map((key, index) => {
       const agent = AG[key];
       const row = snapshotRows[index];
       const [after, before] = row?.videos || [];
       const [newViews, oldViews] = row?.views || [];
-      const difference = before == null ? null : after - before;
-      const viewChange = chg(newViews, oldViews);
-      return '<tr><th scope="row" class="l">' + dot(D.colors[agent.lab]) + esc(agent.name) + '</th><td>' +
-        count(before) + '</td><td>' + count(oldViews) + '</td><td>' + count(after) + '</td><td>' + count(newViews) +
-        '</td><td>' + (difference > 0 ? '+' : '') + count(difference) + '</td><td>' +
-        (viewChange == null ? '—' : pct(viewChange)) + '</td></tr>';
+      const current = '<td>' + count(after) + '</td><td>' + count(newViews) + '</td>';
+      const label = '<tr><th scope="row" class="l">' + dot(D.colors[agent.lab]) + esc(agent.name) + '</th>';
+      if (!comparable) return label + current + '</tr>';
+      const difference = before == null || after == null ? null : after - before;
+      let viewChange = count(null);
+      if (newViews != null && oldViews != null) {
+        viewChange = oldViews === 0 ? (newViews === 0 ? 'No change' : 'From zero') : pct(chg(newViews, oldViews));
+      }
+      return label + '<td>' + count(before) + '</td><td>' + count(oldViews) + '</td>' + current +
+        '<td>' + (difference > 0 ? '+' : '') + count(difference) + '</td><td>' + viewChange + '</td></tr>';
     }).join('') + '</tbody>';
+  $('ytWeekResults').hidden = false;
 } else {
   $('ytWeekNote').textContent = 'Waiting for the first complete YouTube measurement.';
 }
@@ -277,14 +293,38 @@ if (agk.length) {
   const an = agk.map(k => AG[k].name + (AG[k].tier === 'coding' ? '' : ' *')), ac = agk.map(k => D.colors[AG[k].lab]);
   pairChart('agh', agk, an, ac, agk.map(k => AG[k].hn || null));
   pairChart('agy', agk, an, ac, agk.map(k => AG[k].yt ? AG[k].yt.views : null));
-  $('agsub').textContent = 'How each lab\'s agent platform is doing. Two tiers, because they are different products: coding agents work in a terminal or a code repository, general agents work across apps and files. Mentions of the name are the fair comparison across all four labs. Downloads and pull requests are not, see the notes. Names counted: ' + NAMES.agents + '.';
-  $('agnote').textContent = 'Hacker News and YouTube count the agent\'s own name only. npm counts only the agent\'s command-line package. Grok Build and Muse Code also install by a script, so npm undercounts them, and Muse Code has no npm package. Branch pull requests are shown only for claude/ and codex/: branches that start with grok/ or muse/ exist, but in a sample about 60 of every 100 came from 5 accounts, so they are not counted as use. Cursor\'s cursor/ branches are on the Developer usage panel. VS Code installs and Open VSX downloads are all-time counts of the lab\'s own extension (Claude Code and the OpenAI Codex extension); Open VSX is what Cursor-style editors use, so the two overlap in users but not in counts. Homebrew counts installs of the lab\'s own cask in the last 30 days. Grok Build and Muse Code have no verified entry in these, so they show n/a. Grok Bot, Claude Cowork and ChatGPT Work are general agents, so they are not compared with the coding agents.';
-  const cell = (pair, f) => pair && pair[0] != null ? (f || fmt)(pair[0]) + pct(chg(pair[0], pair[1])) : '<span class="mute">n/a</span>';
-  const arow = k => { const a = AG[k];
-    return '<tr><td>' + dot(D.colors[a.lab]) + esc(a.name) + ' <span class="mute">(' + esc(D.companies[a.lab].replace(/ \(.*\)/, '')) + ')</span></td><td>' + cell(a.hn) + '</td><td>' + (a.yt ? a.yt.videos[0] : '<span class="mute">collecting</span>') + '</td><td>' + (a.yt ? fmt(a.yt.views[0]) + pct(chg(a.yt.views[0], a.yt.views[1])) : '<span class="mute">collecting</span>') + '</td><td>' + (a.tier === 'coding' ? (a.has_npm ? cell(a.npm) : '<span class="mute">no npm package</span>') : '–') + '</td><td>' + (a.prs ? cell(a.prs) : (a.tier === 'coding' ? '<span class="mute">not measured</span>' : '–')) + '</td><td>' + (a.stars ? cell(a.stars) : (a.tier === 'coding' ? '<span class="mute">no public repository</span>' : '–')) + '</td>' + ['vscode','openvsx','brew'].map(f => '<td>' + (a[f] ? cell(a[f]) : (a.tier === 'coding' ? '<span class="mute">n/a</span>' : '–')) + '</td>').join('') + '</tr>'; };
-  const head = '<tr><th class="l">Platform</th><th>Hacker News mentions, 7 days</th><th>YouTube videos, 7 days</th><th>YouTube views</th><th>npm downloads, 7 days</th><th>Branch pull requests, 7 days</th><th>GitHub stars, all time</th><th>VS Code installs, all time</th><th>Open VSX downloads, all time</th><th>Homebrew installs, 30 days</th></tr>';
-  const sub = t => '<tr><td class="l" colspan="10"><b>' + t + '</b></td></tr>';
-  $('agtbl').innerHTML = head + sub('Coding agents') + agk.filter(k => AG[k].tier === 'coding').map(arow).join('') + sub('General agents') + agk.filter(k => AG[k].tier !== 'coding').map(arow).join('');
+  $('agsub').textContent = 'Coding agents work in a terminal or a code repository. General agents work across apps and files. Names counted: ' + NAMES.agents + '.';
+  $('agnote').textContent = 'npm counts command-line packages. Grok Build also installs with a script. Muse Code has no npm package. Branch counts cover claude/ and codex/. The Developer usage panel shows Cursor separately. VS Code and Open VSX count the official extensions on each platform. Homebrew counts installs of the official cask.';
+  const attentionColumns = [
+    ['Hacker News mentions (7 days)', a => a.hn],
+    ['YouTube videos (7 days)', a => [a.yt?.videos[0]]],
+    ['YouTube views', a => a.yt?.views],
+  ];
+  const codingColumns = [
+    ['npm downloads (7 days)', a => a.npm, a => a.has_npm ? 'No reading' : 'No npm package'],
+    ['Branch pull requests (7 days)', a => a.prs, () => 'Not measured'],
+    ['GitHub stars (all time)', a => a.stars, () => 'No tracked repository'],
+    ['VS Code installs (all time)', a => a.vscode],
+    ['Open VSX downloads (all time)', a => a.openvsx],
+    ['Homebrew installs (30 days)', a => a.brew],
+  ];
+  function agentTable(sectionId, tableId, agents, columns) {
+    if (!agents.length) return;
+    const measured = columns.filter(([, values]) => agents.some(a => values(a)?.[0] != null));
+    $(tableId).innerHTML = '<thead><tr><th scope="col">Agent</th>' +
+      measured.map(([title]) => '<th scope="col">' + title + '</th>').join('') + '</tr></thead><tbody>' +
+      agents.map(a => '<tr><th scope="row" class="l">' + dot(D.colors[a.lab]) + esc(a.name) +
+        ' <span class="mute">(' + esc(D.companies[a.lab].replace(/ \(.*\)/, '')) + ')</span></th>' +
+        measured.map(([, values, missing]) => {
+          const pair = values(a);
+          return '<td>' + (pair?.[0] != null ? fmt(pair[0]) + pct(chg(pair[0], pair[1])) :
+            '<span class="mute">' + (missing ? missing(a) : 'No reading') + '</span>') + '</td>';
+        }).join('') + '</tr>').join('') + '</tbody>';
+    $(sectionId).hidden = false;
+  }
+  const agents = Object.values(AG);
+  agentTable('coding-agents', 'agtbl', agents.filter(a => a.tier === 'coding'), [...attentionColumns, ...codingColumns]);
+  agentTable('general-agents', 'generalAgentTable', agents.filter(a => a.tier !== 'coding'), attentionColumns);
 }
 
 // ---------- Market odds ----------
