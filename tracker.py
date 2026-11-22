@@ -948,16 +948,14 @@ def build(con):
             np_ = (datetime.fromisoformat(nl).date() - timedelta(days=7)).isoformat()
             r["npm"] = [npm[nl].get(k), npm.get(np_, {}).get(k)]
             r["npm_asof"] = nl
-        def pair7(metric):
+        for fld, metric in (("vscode", "vscode_installs"), ("openvsx", "openvsx_downloads"), ("brew", "brew_30d")):
             ser = data.get(metric, {})
             ds = sorted(d for d in ser if k in ser[d])
-            if not ds:
-                return None
-            prev_d = (datetime.fromisoformat(ds[-1]).date() - timedelta(days=7)).isoformat()
-            return [ser[ds[-1]][k], ser.get(prev_d, {}).get(k)]
-        for fld, metric in (("vscode", "vscode_installs"), ("openvsx", "openvsx_downloads"), ("brew", "brew_30d")):
-            if pair7(metric):
-                r[fld] = pair7(metric)
+            if ds:
+                reading_day = ds[-1]
+                prev_d = (datetime.fromisoformat(reading_day).date() - timedelta(days=7)).isoformat()
+                r[fld] = [ser[reading_day][k], ser.get(prev_d, {}).get(k)]
+                r[f"{fld}_asof"] = reading_day
         st = data.get("gh_stars", {})
         if k in STAR_REPOS_AGENT and st:
             sl = max(d for d in st if k in st[d])
