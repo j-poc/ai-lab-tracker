@@ -4,18 +4,20 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-:root{--bg:#f6f6f4;--card:#fff;--ink:#1c1c1a;--mute:#6b6b66;--line:#e4e4df;--grey:#9a9a94;--up:#14935f;--down:#d14343;--warn-bg:#fbf3dc;--warn-ink:#5c4a10}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121211;--card:#1b1b19;--ink:#ecece8;--mute:#9a9a93;--line:#2c2c29;--grey:#6f6f69;--up:#3ec98a;--down:#f07a7a;--warn-bg:#2b2511;--warn-ink:#e9d594;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#121211;--card:#1b1b19;--ink:#ecece8;--mute:#9a9a93;--line:#2c2c29;--grey:#6f6f69;--up:#3ec98a;--down:#f07a7a;--warn-bg:#2b2511;--warn-ink:#e9d594;color-scheme:dark}
+:root{--bg:#f6f6f4;--card:#fff;--ink:#1c1c1a;--mute:#6b6b66;--line:#e4e4df;--grey:#9a9a94;--up:#14935f;--down:#d14343}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121211;--card:#1b1b19;--ink:#ecece8;--mute:#9a9a93;--line:#2c2c29;--grey:#6f6f69;--up:#3ec98a;--down:#f07a7a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121211;--card:#1b1b19;--ink:#ecece8;--mute:#9a9a93;--line:#2c2c29;--grey:#6f6f69;--up:#3ec98a;--down:#f07a7a;color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
 .wrap{max-width:1100px;margin:0 auto;padding-block:28px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-h1{font-size:26px;margin:0 0 2px;letter-spacing:-.015em}
+.masthead{display:flex;justify-content:space-between;align-items:flex-end;gap:20px 32px;padding:12px 0 24px;margin-bottom:20px;border-bottom:1px solid var(--line)}
+.masthead h1{font-size:clamp(2rem,5vw,3rem);line-height:1.08;letter-spacing:-.04em;margin:0}
+.masthead p{font-size:17px;max-width:51ch;margin:12px 0 0}
+.masthead-meta{display:grid;justify-items:end;gap:6px;flex:none;font-size:14px;color:var(--mute);font-variant-numeric:tabular-nums}
+.masthead-meta a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border:1px solid var(--line);border-radius:8px;color:var(--ink);text-decoration:none}
+.masthead-meta a:hover{background:var(--card);text-decoration:underline}
 h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:var(--mute);margin:34px 0 4px;font-weight:600}
 .sec-sub{margin:0 0 12px;color:var(--mute);font-size:13px;max-width:70ch}
-.sub{color:var(--mute);font-size:13px;margin-bottom:18px}
-.read{background:var(--warn-bg);color:var(--warn-ink);border-radius:10px;padding:12px 14px;font-size:13.5px;margin-bottom:16px}
-.read ul{margin:4px 0 0;padding-left:18px}
 .lead{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .lead>*,.grid>*{min-width:0}
 .lc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
@@ -40,12 +42,22 @@ td.l,th.l{text-align:left}
 a{color:inherit}
 a:focus-visible,.scroll:focus-visible{outline:2px solid currentColor;outline-offset:3px}
 @media (max-width:760px){.lead{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
+@media (max-width:680px){
+  .masthead{flex-direction:column;align-items:flex-start;padding-top:4px}
+  .masthead-meta{justify-items:start}
+}
 </style>
 <div class="wrap">
-  <h1>AI Lab Tracker</h1>
-  <div class="sub" id="sub"></div>
-  <p>Public data on spending, developer activity, and model quality for Anthropic, OpenAI, xAI, and Meta.</p>
-  <p class="read">Each section has its own measure and date. <a href="#sources">See sources and limits</a>.</p>
+  <header class="masthead">
+    <div>
+      <h1>AI Lab Tracker</h1>
+      <p>Compare public data on spending, developer activity, and model quality across Anthropic, OpenAI, xAI, and Meta.</p>
+    </div>
+    <div class="masthead-meta">
+      <time id="updated" hidden></time>
+      <a href="#sources">Sources and limits</a>
+    </div>
+  </header>
   <noscript><p>Enable JavaScript to show the charts and tables.</p></noscript>
   <div class="lead" id="lead"></div>
 
@@ -158,7 +170,10 @@ const dot = c => '<span class="dot" style="background:' + c + '"></span>';
 const alpha = (hex, a) => hex + Math.round(a * 255).toString(16).padStart(2, '0');
 const baseOpts = {maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, grace:'12%'}}};
 
-$('sub').textContent = 'Updated ' + D.updated + ' \u00b7 public sources only \u00b7 each panel shows its own date';
+const updated = $('updated');
+updated.dateTime = D.updated.replace(' ', 'T').replace(' UTC', 'Z');
+updated.textContent = 'Page updated ' + D.updated;
+updated.hidden = false;
 
 // ---------- Money ----------
 const R = D.ramp;

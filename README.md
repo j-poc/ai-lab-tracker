@@ -20,3 +20,5 @@ Show only current YouTube counts until a match is available. Keep coding measure
 Sort the paired attention charts and detail tables by the latest count, largest first. Use views for YouTube and mentions for the agent detail tables. Keep previous counts with the same row. Put missing counts last. Check both chart periods and the live table order.
 
 Use the product for app and CLI measures. Use the company for news and developer package totals. Verify package and install sources. Show the news terms that match the saved counts.
+
+Keep the header short. Show the page date once and link to the sources. Check the header, link, and leader cards at desktop and phone widths.
