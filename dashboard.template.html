@@ -24,6 +24,7 @@ h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:var(--
 .lc .k{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--mute)}
 .lc .v{font-size:18px;font-weight:700;margin:2px 0;letter-spacing:-.01em}
 .lc .d{font-size:12px;color:var(--mute)}
+.lc a{display:inline-flex;align-items:center;min-height:44px;font-size:13px;font-weight:600;text-underline-offset:3px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
 .card h3{font-size:14px;margin:0 0 2px}
@@ -39,8 +40,20 @@ td.l,th.l{text-align:left}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px}
 .up{color:var(--up)}.down{color:var(--down)}.mute{color:var(--mute)}
 .note{font-size:12.5px;color:var(--mute);margin-top:10px}
+#consumer-apps,#youtube-comparison,#news{scroll-margin-top:16px}
+.app-summary{font-size:15px;table-layout:fixed}
+.app-summary th{font-size:13px}
+.app-summary th:first-child{width:38%;overflow-wrap:anywhere}
+.app-summary th[scope="row"],.news-readings th[scope="row"]{color:var(--ink);font-weight:600}
+.news-readings .note{display:block;margin-top:2px}
+.detail{border-top:1px solid var(--line);margin-top:12px}
+.detail summary{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;list-style:none;font-size:14px;font-weight:600}
+.detail summary::-webkit-details-marker{display:none}
+.detail summary::before{content:"";width:6px;height:6px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);margin-inline:2px 5px}
+.detail[open] summary::before{transform:rotate(45deg)}
+.detail summary:hover{text-decoration:underline}
 a{color:inherit}
-a:focus-visible,.scroll:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+a:focus-visible,.scroll:focus-visible,.detail summary:focus-visible{outline:2px solid currentColor;outline-offset:3px}
 @media (max-width:760px){.lead{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
 @media (max-width:680px){
   .masthead{flex-direction:column;align-items:flex-start;padding-top:4px}
@@ -82,7 +95,7 @@ a:focus-visible,.scroll:focus-visible{outline:2px solid currentColor;outline-off
   <div class="grid">
     <div class="card"><h3>Agent platforms, Hacker News mentions</h3><p>Stories and comments that name the agent. The solid bars show the latest seven days, largest first. Faded bars show the previous week. An asterisk marks general agents.</p><div class="chart"><canvas id="agh"></canvas></div></div>
     <div class="card"><h3>Agent platforms, YouTube views</h3><p>Views of videos that name the agent in the title, largest first. Faded bars show the previous week when a matching count exists. An asterisk marks general agents.</p><div class="chart"><canvas id="agy"></canvas></div></div>
-    <section class="card wide" id="youtube-comparison" aria-labelledby="ytWeekTitle">
+    <section class="card wide" id="youtube-comparison" aria-labelledby="ytWeekTitle" tabindex="-1">
       <h3 id="ytWeekTitle">YouTube agents by publication week</h3>
       <p id="ytWeekNote"></p>
       <div class="scroll" id="ytWeekResults" tabindex="0" role="region" aria-labelledby="ytWeekTitle" hidden><table id="ytWeekTable" aria-describedby="ytWeekNote"></table></div>
@@ -108,10 +121,22 @@ a:focus-visible,.scroll:focus-visible{outline:2px solid currentColor;outline-off
     </div>
   </div>
 
-  <h2 class="sec">Consumer apps by product</h2>
-  <p class="sec-sub">US iPhone only. Sorted by new ratings in the last 7 days, which shows what is happening now. Total ratings favor old apps. Apple does not publish download counts, so new ratings and chart rank are the free stand-ins for downloads. Muse from Meta is a newer Meta app (released September 2026) and ranks far above the older Meta AI app. A new app shows its 7-day gain after 7 days of history.</p>
-  <div class="grid"><div class="card wide"><div class="scroll"><table id="apps"></table></div>
-    <div class="note">Rank is on the US App Store top-free chart (top 200) and the Productivity chart. Reviews per day uses the newest 500 written reviews. Apple\'s review feed is unreliable: on some days it returns no reviews, so that column shows the newest good reading with its date. The 7-day ratings gain needs a snapshot from a week ago.</div></div></div>
+  <h2 class="sec" id="consumer-apps" tabindex="-1">Consumer apps by product</h2>
+  <p class="sec-sub" id="app-note">US iPhone App Store. Apps are sorted by ratings added in seven days. Apple does not publish download counts.</p>
+  <div class="grid"><div class="card wide">
+    <table class="app-summary" id="apps" aria-describedby="app-note"></table>
+    <div class="note">The US rank uses the top-free chart. Ratings added requires a count from a week ago.</div>
+    <details class="detail">
+      <summary id="app-reviews-title">Reviews and other US stats</summary>
+      <div class="scroll" role="region" tabindex="0" aria-labelledby="app-reviews-title"><table id="appReviews"></table></div>
+      <div class="note">Reviews per day uses the newest 500 written reviews. When Apple returns no reviews, the table shows the last available count and its date.</div>
+    </details>
+    <details class="detail">
+      <summary id="app-countries-title">Country ranks</summary>
+      <div class="scroll" role="region" tabindex="0" aria-labelledby="app-countries-title"><table id="appCountries"></table></div>
+      <div class="note">These iPhone App Store charts list the top 100 apps.</div>
+    </details>
+  </div></div>
 
   <div id="radarsec" hidden>
     <h2 class="sec">Web traffic rank</h2>
@@ -131,7 +156,17 @@ a:focus-visible,.scroll:focus-visible{outline:2px solid currentColor;outline-off
     <div class="card"><h3>Hacker News mentions by product</h3><p>Stories and comments that contain the product name (Grok Bot also as GrokBot). Developer audience only. Solid = last 7 days. Faded = the week before.</p><div class="chart"><canvas id="hn"></canvas></div></div>
     <div class="card"><h3>Reddit community activity</h3><p id="rdts"></p><div class="chart"><canvas id="rdt"></canvas></div></div>
     <div class="card"><h3>Wikipedia page views, all articles</h3><p id="wikis"></p><div class="chart"><canvas id="wiki"></canvas></div></div>
-    <div class="card"><h3>Share of world news by AI company</h3><p id="newss"></p><div class="chart"><canvas id="news"></canvas></div></div>
+    <section class="card wide" id="news" aria-labelledby="news-title">
+      <h3 id="news-title">Share of world news by AI company</h3>
+      <p id="news-note">Waiting for news data.</p>
+      <div class="chart" id="newsChartPanel" hidden><canvas id="newsChart" role="img" aria-label="News shares for the same dates" aria-describedby="news-note"></canvas></div>
+      <table class="news-readings" id="newsReadings" aria-describedby="news-note" hidden></table>
+      <div class="note" id="news-coverage" hidden>* Daily coverage was not saved for these readings.</div>
+      <details class="detail" id="newsMethod" hidden>
+        <summary>How we count news</summary>
+        <p id="news-terms"></p>
+      </details>
+    </section>
     <div class="card wide"><h3>Product detail</h3><div class="scroll"><table id="atttbl"></table></div></div>
   </div>
 
@@ -213,9 +248,36 @@ $('devtbl').innerHTML = '<tr><th class="l">Signal</th>' + labs.map(l => '<th>' +
 
 // ---------- Consumer apps ----------
 const COUNTRIES = [['gb','UK'],['de','Germany'],['in','India'],['jp','Japan'],['br','Brazil']];
-$('apps').innerHTML = '<tr><th class="l">App</th><th>Top-free rank</th><th>Productivity rank</th><th>Reviews per day</th><th>Recent avg stars</th><th>Ratings gained, 7 days</th><th>Total ratings</th>' + COUNTRIES.map(c => '<th>' + c[1] + ' rank</th>').join('') + '</tr>' +
-  (D.apps || []).slice().sort((a, b) => ((b.gained_7d || 0) - (a.gained_7d || 0)) || ((a.rank || 999) - (b.rank || 999))).map(a =>
-    '<tr><td>' + dot(D.colors[a.lab]) + esc(a.name) + '</td><td>' + (a.rank ? '#' + a.rank : 'outside top 200') + '</td><td>' + (a.prod_rank ? '#' + a.prod_rank : 'outside top 200') + '</td><td>' + (a.review_rate ? fmt(a.review_rate) + (a.review_asof && a.review_asof !== a.as_of ? ' <span class="mute">(' + a.review_asof + ')</span>' : '') : '<span class="mute">n/a</span>') + '</td><td>' + (a.review_stars ? a.review_stars.toFixed(2) : '–') + '</td><td>' + (a.gained_7d == null ? '<span class="mute">collecting</span>' : '+' + fmt(a.gained_7d)) + '</td><td>' + fmt(a.ratings) + '</td>' + COUNTRIES.map(c => { const v = a.countries && a.countries[c[0]]; return '<td>' + (v == null ? '<span class="mute">n/a</span>' : v ? '#' + v : '<span class="mute">outside top 100</span>') + '</td>'; }).join('') + '</tr>').join('');
+const apps = (D.apps || []).slice().sort((a, b) =>
+  (b.gained_7d ?? -Infinity) - (a.gained_7d ?? -Infinity) || (a.rank || 999) - (b.rank || 999));
+function appTable(id, columns) {
+  const headers = columns.map(([title, , attrs]) => `<th scope="col" ${attrs || ''}>${title}</th>`).join('');
+  const body = apps.map(app => {
+    const cells = columns.map(([, value]) => `<td>${value(app)}</td>`).join('');
+    return `<tr><th scope="row">${dot(D.colors[app.lab])}${esc(app.name)}</th>${cells}</tr>`;
+  }).join('');
+  $(id).innerHTML = `<thead><tr><th scope="col">App</th>${headers}</tr></thead><tbody>${body ||
+    `<tr><td colspan="${columns.length + 1}">Waiting for app data.</td></tr>`}</tbody>`;
+}
+const appRank = (rank, limit) => rank ? `#${rank}` : `<span class="mute">Outside top ${limit}</span>`;
+appTable('apps', [
+  ['US rank', a => appRank(a.rank, 200)],
+  ['Ratings added (7 days)', a => a.gained_7d == null ? '<span class="mute">Collecting</span>' : fmt(a.gained_7d), 'aria-sort="descending"'],
+]);
+appTable('appReviews', [
+  ['Productivity rank', a => appRank(a.prod_rank, 200)],
+  ['Reviews per day', a => {
+    if (a.review_rate == null) return 'No reading';
+    const date = a.review_asof && a.review_asof !== a.as_of ? ` <span class="mute">(${esc(a.review_asof)})</span>` : '';
+    return fmt(a.review_rate) + date;
+  }],
+  ['Recent average stars', a => a.review_stars?.toFixed(2) ?? '–'],
+  ['Total ratings', a => fmt(a.ratings)],
+]);
+appTable('appCountries', COUNTRIES.map(([country, name]) => [name, a => {
+  const rank = a.countries?.[country];
+  return rank == null ? '<span class="mute">No reading</span>' : appRank(rank, 100);
+}]));
 
 // ---------- Attention ----------
 const A = D.attention;
@@ -229,6 +291,49 @@ function pairChart(id, names, colors, pairs, fmtLabel) {
     options:{maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:t => t.dataset.label + ': ' + (fmtLabel ? fmtLabel(t.parsed.y) : fmt(t.parsed.y))}}}, scales:{y:{beginAtZero:true, grace:'12%', ticks:{callback:v => fmtLabel ? fmtLabel(v) : fmt(v)}}}}});
 }
 const NAMES = D.names;
+function weekEnding(end, offset = 0) {
+  const date = new Date(end + 'T00:00:00Z');
+  date.setUTCDate(date.getUTCDate() + offset);
+  const last = date.toISOString().slice(0, 10);
+  date.setUTCDate(date.getUTCDate() - 6);
+  return date.toISOString().slice(0, 10) + ' to ' + last;
+}
+function renderNews(labData) {
+  const newsLabs = labs.filter(lab => Number.isFinite(labData[lab]?.news?.[0]));
+  if (!newsLabs.length) return;
+  const endOf = lab => labData[lab].news_asof || A.as_of;
+  const share = value => value.toFixed(2) + '%';
+  const end = endOf(newsLabs[0]);
+  const sameWeek = end && newsLabs.length === labs.length &&
+    newsLabs.every(lab => endOf(lab) === end && labData[lab].news_days?.[0] === 7);
+  $('newsMethod').hidden = false;
+  $('news-terms').textContent = 'GDELT measures each company’s share of the news it monitors. It counts each article once per company. Names used: ' + NAMES.news + '.';
+  if (sameWeek) {
+    const samePriorWeek = newsLabs.every(lab => labData[lab].news_days[1] === 7 && Number.isFinite(labData[lab].news[1]));
+    $('news-note').textContent = 'All companies use ' + weekEnding(end) + ' (UTC).' +
+      (samePriorWeek ? ' Faded bars show the week of ' + weekEnding(end, -7) + '.' : ' The previous week needs complete data for all companies.');
+    $('newsChartPanel').hidden = false;
+    pairChart('newsChart', newsLabs.map(lab => D.companies[lab]), newsLabs.map(lab => D.colors[lab]),
+      newsLabs.map(lab => samePriorWeek ? labData[lab].news : [labData[lab].news[0], null]), share);
+    return;
+  }
+  $('news-note').textContent = 'A comparison needs seven days of data for every company over the same dates. Here are the saved readings.';
+  const reading = (lab, index) => {
+    const row = labData[lab];
+    const value = row?.news?.[index];
+    if (!Number.isFinite(value)) return '<td class="mute">No reading</td>';
+    const date = endOf(lab);
+    const range = date ? weekEnding(date, -7 * index) : 'Dates unavailable';
+    const days = row.news_days?.[index];
+    const coverage = days == null ? ' *' : days < 7 ? ` · ${days} of 7 days` : '';
+    return `<td>${share(value)}<span class="note">${range}${coverage}</span></td>`;
+  };
+  const ordered = labs.slice().sort((a, b) => D.companies[a].localeCompare(D.companies[b]));
+  $('newsReadings').innerHTML = '<thead><tr><th scope="col">Company</th><th scope="col">Latest reading (UTC)</th><th scope="col">Previous reading (UTC)</th></tr></thead><tbody>' +
+    ordered.map(lab => `<tr><th scope="row">${dot(D.colors[lab])}${esc(D.companies[lab])}</th>${reading(lab, 0)}${reading(lab, 1)}</tr>`).join('') + '</tbody>';
+  $('newsReadings').hidden = false;
+  $('news-coverage').hidden = !newsLabs.some(lab => labData[lab].news_days == null);
+}
 if (A) {
   const stale0 = []; labs.forEach(l => Object.entries((A.labs[l] && A.labs[l].stale) || {}).forEach(([f, d]) => stale0.push(D.companies[l] + ' ' + f + ' (as of ' + d + ')')));
   $('attsub').textContent = (stale0.length ? 'Old values kept because collection failed: ' + stale0.join(', ') + '. ' : '') + 'Window: ' + A.window + ' (UTC). Compared with the 7 days before. Attention is the weakest signal here: it shows interest, not use or spending.';
@@ -239,7 +344,7 @@ if (A) {
   const L = A.labs;
   const lc = labs.map(l => D.colors[l]), ln = labs.map(l => D.companies[l]);
   pairChart('wiki', ln, lc, labs.map(l => L[l] && L[l].wiki ? L[l].wiki : null));
-  pairChart('news', ln, lc, labs.map(l => L[l] && L[l].news ? L[l].news : null), v => (+v).toFixed(2) + '%');
+  renderNews(L);
   pairChart('ytl', ln, lc, labs.map(l => L[l] && L[l].yt ? L[l].yt.views : null));
   pairChart('hnl', ln, lc, labs.map(l => L[l] && L[l].hn ? L[l].hn : null));
   const ytw = A.yt_window ? 'Videos published ' + A.yt_window + ' (UTC)' : 'Videos published in the last 7 days';
@@ -250,8 +355,6 @@ if (A) {
   pairChart('rdt', ln, lc, labs.map(l => L[l] && L[l].reddit ? L[l].reddit : null));
   $('rdts').textContent = 'Posts per week in the communities where each lab\'s users gather: ' + Object.keys(L).map(l => D.companies[l] + ': ' + Object.keys(L[l].reddit_subs || {}).map(s => 'r/' + s).join(', ')).join(' | ') + '. Counts activity, not opinion. Bigger communities post more, so read the change, not only the height. Solid = last 7 days.';
   $('hnlabs').textContent = 'Stories and comments with any of: ' + NAMES.hn + '. Each item counted once. Solid = last 7 days. One rule for all labs: a single common word counts only if nearly all of its posts are about AI. Left out for that reason: Grok (xAI), Llama and Muse (Meta). Counting them too would give ' + labs.filter(l => L[l] && L[l].hn_bare).map(l => D.companies[l] + ' ' + fmt(L[l].hn_bare[0]) + ' (instead of ' + fmt(L[l].hn[0]) + ')').join(' and ') + ', but part of those extra posts is about something else.';
-  const stale = labs.filter(l => L[l] && L[l].news_asof).map(l => D.companies[l] + ' (as of ' + L[l].news_asof + ')');
-  $('newss').textContent = 'GDELT counts news articles by AI company. It uses company names, product names, model names, and selected AI project names. Each article counts once per company. Names in these counts: ' + (NAMES.news || 'No reading yet') + '. Solid = last 7 days.' + (stale.length ? ' GDELT data ends earlier for: ' + stale.join(', ') + ' (its newest day, or an old value kept when GDELT limited requests).' : '');
   $('wikis').textContent = 'English Wikipedia daily views, summed over: ' + NAMES.wiki + '. Grok Bot has no article of its own. Solid = last 7 days.';
   $('atttbl').innerHTML = '<tr><th class="l">Product</th><th>Hacker News mentions</th><th>YouTube videos found</th><th aria-sort="descending">YouTube views</th><th class="l">Most-viewed video this week</th></tr>' +
     prods.slice().sort(largestFirst(k => P[k]?.yt?.views[0])).map(k => { const r = P[k] || {}; const y = r.yt, h = r.hn;
@@ -266,18 +369,11 @@ const youtubeReading = key => AG[key].yt?.asof === latestYouTubeDay ? AG[key].yt
 const byViews = agk.slice().sort(largestFirst(k => youtubeReading(k)?.views[0]));
 const byMentions = agk.slice().sort(largestFirst(k => AG[k].hn?.[0]));
 if (latestYouTubeDay) {
-  const week = offset => {
-    const day = days => {
-      const date = new Date(latestYouTubeDay + 'T00:00:00Z');
-      date.setUTCDate(date.getUTCDate() + days);
-      return date.toISOString().slice(0, 10);
-    };
-    return day(offset - 6) + ' to ' + day(offset);
-  };
+  const week = offset => weekEnding(latestYouTubeDay, offset);
   const comparable = byViews.some(key => youtubeReading(key)?.views[1] != null);
   $('ytWeekNote').textContent = comparable
     ? 'The tracker saves each view count one day after the publication week ends (UTC). Each sample uses up to 50 search results per name and duration group.'
-    : 'Videos published ' + week(0) + ' (UTC). The previous week needs a count at the same video age. The comparison appears when both counts are available.';
+    : 'Showing one week (' + week(0) + ' UTC). A comparison needs view counts from both weeks at the same video age.';
   const count = value => value == null ? '<span class="mute">No reading</span>' : value.toLocaleString();
   const metrics = '<th scope="col">Videos</th><th scope="col">Views</th>';
   const currentMetrics = '<th scope="col">Videos</th><th scope="col" aria-sort="descending">Views</th>';
@@ -423,12 +519,15 @@ function leader(vals) { let best = null; Object.keys(vals).forEach(k => { if (va
 const cards = [];
 if (R) { const t = leader(R.adoption.values); cards.push(['Money', D.companies[t], D.colors[t], R.adoption.values[t] + '% of Ramp customers pay (' + R.adoption.period + ')']); }
 if (dev.pypi && dev.npm) { const a = leader(dev.pypi.latest), b = leader(dev.npm.latest); cards.push(['Developer downloads', D.companies[a] + (a === b ? '' : ' / ' + D.companies[b]), D.colors[a], 'PyPI: ' + D.companies[a] + ', npm: ' + D.companies[b]]); }
-if ((D.apps || []).length) { const ranked = D.apps.filter(a => a.rank).sort((a, b) => a.rank - b.rank)[0]; if (ranked) cards.push(['Consumer app (US only)', ranked.name, D.colors[ranked.lab], 'US top-free rank #' + ranked.rank + '. Other countries are in the apps table']); }
-if (A) { const yv = {}; labs.forEach(l => { if (A.labs[l] && A.labs[l].yt) yv[l] = A.labs[l].yt.views[0]; }); const best = leader(yv); if (best) cards.push(['YouTube views', D.companies[best], D.colors[best], fmt(yv[best]) + ' views · ' + A.yt_window]); }
+if (apps.length) { const ranked = apps.filter(a => a.rank).sort((a, b) => a.rank - b.rank)[0]; if (ranked) cards.push(['Consumer app (US only)', ranked.name, D.colors[ranked.lab], 'US top-free rank #' + ranked.rank, ['#consumer-apps', 'See app stats']]); }
+if (A) { const yv = {}; labs.forEach(l => { if (A.labs[l] && A.labs[l].yt) yv[l] = A.labs[l].yt.views[0]; }); const best = leader(yv); if (best) cards.push(['YouTube views', D.companies[best], D.colors[best], fmt(yv[best]) + ' views · ' + A.yt_window, ['#youtube-comparison', 'Compare agents']]); }
 if (AR && AR.text) { const t = Object.keys(AR.text.labs).sort((a, b) => AR.text.labs[a].rank - AR.text.labs[b].rank)[0]; if (t) cards.push(['Model quality', D.companies[t], D.colors[t], 'Best Arena text rank #' + AR.text.labs[t].rank + ': ' + AR.text.labs[t].model]); }
 if (RD) { const best = labs.filter(l => RD.series[l] && RD.series[l].length).sort((a, b) => RD.series[a].slice(-1)[0] - RD.series[b].slice(-1)[0])[0]; if (best) cards.push(['Web traffic', D.companies[best], D.colors[best], '#' + RD.series[best].slice(-1)[0] + ' of Generative AI sites (Cloudflare Radar)']); }
 if (D.polymarket && D.polymarket.events[0]) { const ev = D.polymarket.events[0]; const n = Object.keys(ev.odds).sort((a, b) => ev.odds[b] - ev.odds[a])[0]; cards.push(['Market odds', n, rev[n] ? D.colors[rev[n]] : GREY, ev.odds[n].toFixed(0) + '% to have the best model, ' + ev.end]); }
-$('lead').innerHTML = cards.map(c => '<div class="lc"><div class="k">' + esc(c[0]) + '</div><div class="v" style="color:' + c[2] + '">' + esc(c[1]) + '</div><div class="d">' + esc(c[3]) + '</div></div>').join('');
+$('lead').innerHTML = cards.map(([label, value, color, description, link]) => {
+  const action = link ? `<a href="${link[0]}">${link[1]}</a>` : '';
+  return `<div class="lc"><div class="k">${esc(label)}</div><div class="v" style="color:${color}">${esc(value)}</div><div class="d">${esc(description)}</div>${action}</div>`;
+}).join('');
 
 // ---------- Methods ----------
 const as = k => (D.dev[k] ? D.dev[k].as_of : '–');
@@ -438,12 +537,12 @@ const rows = [
   ['Developer usage', '<a href="https://huggingface.co/docs/hub/api">Hugging Face Hub API</a>', 'Last-30-day downloads and all-time likes of each lab\'s own open-weight language model families: gpt-oss (organisation openai), Grok (xai-org), Llama (meta-llama); top 100 models of each organisation', 'Day ' + as('hf_downloads'), 'Open weights only. Anthropic publishes none. Downloads are a rolling 30 days, not 7, and count pulls, not users. Copies, quantised versions and fine-tunes by other people are left out for every lab, and so are other model types (CLIP, Whisper).'],
   ['Developer usage', '<a href="https://docs.github.com/en/rest/search">GitHub search API</a>', 'Pull requests whose branch starts with claude/, codex/ or cursor/', 'Week ending ' + as('agent_prs'), 'Default prefixes only. Renamed branches and local agent work are missed. Claude prefixes come from several Claude surfaces. cursor/ is Cursor, owned by SpaceXAI since Aug 2026, and is not the Grok Bot agent. GitHub search counts are approximate. Meta has no verified prefix. Branches that start with grok/ exist (about 1,500 PRs a week) but nothing shows that Grok Bot makes them, so they are not counted.'],
   ['Model quality', '<a href="https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset">Arena leaderboard dataset</a> (CC BY 4.0, by Arena / LMArena)', 'Best-rated model of each lab on seven boards (Text, Text coding, WebDev, Vision, Image generation, Video generation, Search), and its points behind the top model', AR ? AR.text.date : '\u2013', 'Human votes on chat and coding answers. Style and vote mix affect results. A lab can list many variants, and we show its best one. Scores are not comparable across boards. Snapshot dates can lag by days.'],
-  ['Consumer apps', '<a href="https://developer.apple.com/library/archive/documentation/AudioVideo/Conceptual/iTuneSearchAPI/">Apple iTunes Search API and RSS</a>', 'Chart rank, rating counts, newest 500 written reviews', (D.apps[0] || {}).as_of || '–', 'US iPhone only for the ratings and review columns. The UK, Germany, India, Japan and Brazil columns are chart ranks only, and the chart lists the top 100, so a missing app is outside the top 100. No Android, web or Mac. Written reviews are a small share of users.'],
+  ['Consumer apps', '<a href="https://developer.apple.com/library/archive/documentation/AudioVideo/Conceptual/iTuneSearchAPI/">Apple iTunes Search API and RSS</a>', 'Chart rank, rating counts, newest 500 written reviews', (D.apps[0] || {}).as_of || '–', 'Ratings and reviews come from the US iPhone App Store. The UK, Germany, India, Japan and Brazil charts list the top 100 apps. No Android, web or Mac. Written reviews are a small share of users.'],
   ['Attention', '<a href="https://developers.google.com/youtube/v3">YouTube Data API v3</a>', 'Views today of videos published in the last 7 days (to yesterday) with a name of the lab, product or agent in the title. Two searches per name per week, up to 50 results each by views, duplicates once. Videos of 4 minutes or longer only. The comparison is the same measure 7 days ago, so both numbers have the same video ages', A ? (A.yt_window || '–') : '–', 'Up to 50 search results per name and duration group per week only. Videos can mention a name in the title without being about it. Bare "Codex" is searched without titles that mention Warhammer or 40k. Searches use two duration groups, 4 to 20 minutes and over 20 minutes.'],
   ['Attention', '<a href="https://hn.algolia.com/api">Hacker News (Algolia)</a>', 'Stories and comments with any name of the lab or product, each item counted once', A ? A.window : '–', 'Developer audience. One rule for every lab. A name of two or more words counts. A single common word counts only if, in at least 30 posts from the last 7 days (checked 19 Nov 2026), at least 85% had AI words next to it. Counted: Fable 89%, Mythos 85%, Codex 89%, and OpenAI\'s Astra 90%, Sol 94%, Luna 95%, Terra 96%. Not counted: Grok 70%, Llama 67%, Muse 71%, and Cowork (only 11 posts). The test only looks for AI words near the name, so it is a rough screen and the real share of on-topic posts is a little lower. xAI and Meta are therefore lower bounds, and the page shows what the counts would be with the left-out words. YouTube names were not tested this way. OpenAI\'s Sora is not counted: OpenAI closed the app in April 2026 and the API in September 2026.'],
   ['Attention', '<a href="https://arctic-shift.photon-reddit.com">Reddit via Arctic Shift archive</a>', 'Posts per week in each lab\'s main subreddits', A ? A.window : '–', 'Community size drives the total, so the change matters more. Posts only, no comments. The archive can lag or miss removed posts. Reddit blocks direct automated reads, so a free archive is used.'],
   ['Attention', '<a href="https://wikimedia.org/api/rest_v1/">Wikimedia pageviews</a>', 'Daily views of several English articles per lab (company, products, models)', A ? A.window : '–', 'Grok Bot redirects to the Grok article, so it cannot be isolated.'],
-  ['Attention', '<a href="https://www.gdeltproject.org">GDELT</a>', 'Share of monitored news with any listed name for each AI company', A ? A.window : '–', 'Counts all mentions, positive or negative. Meta\'s Muse names are recent, and "Meta Llama" can match older Llama news. Cursor (owned by SpaceXAI since Aug 2026) is not counted under xAI. The query uses the listed company, model, product and AI project names. The terms match the saved counts. Grok can also refer to the English verb. SpaceX alone can refer to spaceflight. Foundation projects such as PyTorch can appear in articles about many companies.'],
+  ['Attention', '<a href="https://www.gdeltproject.org">GDELT</a>', 'Share of monitored news with any listed name for each AI company', '<a href="#news">News dates</a>', 'The chart compares only weeks with data for all seven days for each company. Counts include positive and negative mentions. Meta\'s Muse names are recent, and "Meta Llama" can match older Llama news. Cursor is outside the xAI count. Grok can also refer to the English verb. SpaceX alone can refer to spaceflight. Foundation projects such as PyTorch can appear in articles about many companies.'],
   ['Web traffic rank', '<a href="https://radar.cloudflare.com/ai-insights">Cloudflare Radar</a> internet services ranking', 'Daily rank of each lab\'s chat site among Generative AI services, last 28 days', RD ? RD.as_of : '–', 'Ranks sites by DNS lookups on Cloudflare\'s 1.1.1.1 resolver, so it is a proxy for web use. It is not a user count. Apps and API use may not be included. Only one Meta service (Meta AI) is ranked.'],
   ['GitHub stars', '<a href="https://docs.github.com/en/rest/repos/repos#get-a-repository">GitHub REST API</a>', 'All-time stars of one repository per coding agent (claude-code, codex, grok-build) and per open-weight lab (gpt-oss, Grok-1, Llama)', (D.agents.ag_codex && D.agents.ag_codex.stars_asof) || '–', 'A star is interest, not use. Stars of old repositories (Grok-1 from 2024, Llama) reflect launch hype. The 7-day change shows after 7 days of saved history. The Muse Code SDK has a public repository. The tracker has no verified repository for the CLI.'],
   ['Agent install channels', '<a href="https://learn.microsoft.com/en-us/azure/devops/extend/gallery/apis/overview">VS Code Marketplace gallery API</a>, <a href="https://open-vsx.org/swagger-ui/">Open VSX API</a>, <a href="https://formulae.brew.sh/analytics/">Homebrew analytics</a>', 'Installs of the lab\'s own VS Code extension (all time), downloads of the same extension on Open VSX (all time), installs of casks that download the vendor release (30 days)', 'VS Code ' + (AG.ag_codex?.vscode_asof || '–') + ' · Open VSX ' + (AG.ag_codex?.openvsx_asof || '–') + ' · Homebrew ' + (AG.ag_codex?.brew_asof || '–'), 'Homebrew counts only installs with analytics enabled. The 7-day change needs a count from seven days ago. Grok Build and Muse Code have Homebrew casks. The tracker has no verified first-party editor extension for either agent.'],

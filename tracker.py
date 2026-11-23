@@ -705,18 +705,17 @@ def wiki_views(title, a, b):
 
 
 def gdelt_share(query, end):
-    """Mean daily share of monitored news volume. Returns (last 7 days, prior 7 days, last day used).
-    GDELT sometimes lags by a day or two, and today's day is partial, so the windows end on the newest full day it has (at most 3 days late)."""
+    """Return both weekly shares, the last full day, and the number of days in each week."""
     u = "https://api.gdeltproject.org/api/v2/doc/doc?mode=timelinevol&format=json&timespan=20d&query=" + urllib.parse.quote(query)
     pts = http_json(u, retries=3, wait429=30)["timeline"][0]["data"]
     by_day = {}
     for p in pts:
         by_day.setdefault(p["date"][:8], []).append(p["value"])
     days = {datetime.strptime(d, "%Y%m%d").date(): sum(v) / len(v) for d, v in by_day.items()}
-    days.pop(utc_today(), None)  # today is partial
+    days = {day: value for day, value in days.items() if day <= end}
     if not days:
         raise RuntimeError("no days")
-    last_day = min(end, max(days))
+    last_day = max(days)
     if (end - last_day).days > 3:
         raise RuntimeError(f"newest day is {last_day}")
     last = [days.get(last_day - timedelta(days=i)) for i in range(7)]
@@ -724,17 +723,14 @@ def gdelt_share(query, end):
     last, prior = [x for x in last if x is not None], [x for x in prior if x is not None]
     if len(last) < 5 or len(prior) < 5:
         raise RuntimeError("not enough days")
-    return sum(last) / len(last), sum(prior) / len(prior), last_day
+    return sum(last) / len(last), sum(prior) / len(prior), last_day, [len(last), len(prior)]
 
 
 def read_lab_news(lab, end):
     base = ALIASES[lab]["news"]
     query = "(" + " OR ".join((base[1:-1], *NEWS_ADDITIONS.get(lab, ()))) + ")"
-    latest, prior, last_day = gdelt_share(query, end)
-    result = {"news": [latest, prior], "news_query": query}
-    if last_day != end:
-        result["news_asof"] = last_day.isoformat()
-    return result
+    latest, prior, last_day, days = gdelt_share(query, end)
+    return {"news": [latest, prior], "news_asof": last_day.isoformat(), "news_days": days, "news_query": query}
 
 
 def collect_attention(con):
@@ -816,14 +812,10 @@ def collect_attention(con):
                 row.update(read_lab_news(lab, end))
             except Exception as ex:
                 log(f"gdelt {lab} FAILED: {str(ex)[:100]}")
-                if old.get("news"):  # GDELT limits request rates; keep the last good value and say so
-                    row["news"] = old["news"]
-                    row["news_asof"] = old.get("news_asof") or prev.get("as_of")
             time.sleep(12)
-        elif "news" in old:
-            row["news"] = old["news"]
-            if "news_asof" in old:
-                row["news_asof"] = old["news_asof"]
+        if "news" not in row and "news" in old:
+            row.update({key: value for key, value in old.items() if key in ("news", "news_days", "news_query")})
+            row["news_asof"] = old.get("news_asof") or prev.get("as_of")
         if "news" in row:
             row.setdefault("news_query", old.get("news_query", al["news"]))
         out["labs"][lab] = row

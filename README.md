@@ -22,3 +22,6 @@ Sort the paired attention charts and detail tables by the latest count, largest 
 Use the product for app and CLI measures. Use the company for news and developer package totals. Verify package and install sources. Show the news terms that match the saved counts.
 
 Keep the header short. Show the page date once and link to the sources. Check the header, link, and leader cards at desktop and phone widths.
+
+Compare news only when all four companies have data for the same seven days. Show dated readings when the periods differ.
+Link the app and YouTube cards to their tables. Check that the main app stats fit at phone width and that country ranks open from the same section.
