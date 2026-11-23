@@ -12,6 +12,7 @@ Money data (Ramp AI Index) is hand-entered in manual.json with its source and da
 import argparse
 import json
 import os
+import re
 import sqlite3
 import subprocess
 import time
@@ -144,6 +145,19 @@ NEWS_ADDITIONS = {
     "meta": ('"Llama 3"', '"Llama Stack"', '"Meta Model API"', '"Segment Anything Model"', '"Meta FAIR"'),
 }
 YT_EXCLUDE = {"Codex": ("warhammer", "40k")}  # bare "Codex" is also a Warhammer 40k book; titles with these words do not count
+# "Codex" is a common word (a book, a game compendium, a channel, a film). A video counts only when the
+# title or description also shows OpenAI's coding agent. A lab or product word can sit anywhere in that text.
+# A generic coding word has to sit next to the name, so a footer that says "python" does not rescue a film.
+# The channel name is not a mention: "The Codex" and "Divine Codex" do not count.
+YT_CODEX_STRONG = ("openai", "chatgpt", "gpt", "claude", "claudecode", "anthropic", "gemini")
+YT_CODEX_NEAR = ("cli", "npm", "github", "mcp", "vscode", "copilot", "coding", "programming", "programmer",
+                 "developer", "developers", "python", "javascript", "typescript", "software", "pytest", "tdd",
+                 "código", "codigo")
+YT_CODEX_WINDOW = 12  # tokens on either side of the name
+# "ChatGPT Work" is the product. "How ChatGPT works" and "how do systems like ChatGPT work" are not.
+# "Grok Build" is the product. "Let Grok build this" is the verb.
+YT_CAUSE = ("let", "watch", "see", "make", "have", "help")
+YT_OBJECT = ("this", "it", "me", "you", "your", "a", "an", "the", "my")
 # Reddit communities where each lab's users gather. Activity is counted as posts per week (Arctic Shift archive).
 REDDIT = {"anthropic": ["ClaudeAI", "ClaudeCode", "claude", "Anthropic"], "openai": ["OpenAI", "ChatGPT", "codex", "ChatGPTPro"],
           "xai": ["grok", "GrokBot"], "meta": ["MetaAI"]}
@@ -592,6 +606,101 @@ def iso(d):
 YT_MAX_SEARCHES = 85  # per run. YouTube allows about 100 searches a day, and the title and view lookups need some quota too
 
 
+def yt_phrase_in(phrase, text):
+    """Whole phrase, so "ChatGPT Work" does not match "ChatGPT Works" and "codex" does not match inside an email."""
+    return re.search(r"(?<![a-z0-9])" + re.escape(phrase.lower()) + r"(?![a-z0-9])", (text or "").lower()) is not None
+
+
+def yt_tokens(text):
+    return re.findall(r"[a-z0-9à-öø-ÿ]+", (text or "").lower())
+
+
+def yt_strip_channel_brand(text, channel, name):
+    """Remove a longer channel name that is built on the looked-up word ("The Codex", "Divine Codex").
+    Do not remove a channel that is the word itself, or a shorter channel ("Grok" from "Grok Bot")."""
+    if not text or not channel or not name:
+        return text or ""
+    if name.lower() not in channel.lower() or channel.lower().strip() == name.lower().strip():
+        return text
+    return re.sub(re.escape(channel), " ", text, flags=re.IGNORECASE)
+
+
+def yt_term_near(name, text, terms, window):
+    words = yt_tokens(text)
+    parts = yt_tokens(name)
+    if not parts:
+        return False
+    wanted = [yt_tokens(term) for term in terms]
+    for i in range(len(words) - len(parts) + 1):
+        if words[i:i + len(parts)] != parts:
+            continue
+        region = words[max(0, i - window):min(len(words), i + len(parts) + window)]
+        for term in wanted:
+            if len(term) == 1 and term[0] in region:
+                return True
+            if len(term) > 1 and any(region[j:j + len(term)] == term for j in range(len(region) - len(term) + 1)):
+                return True
+    return False
+
+
+def yt_codex_about_agent(title, description, channel):
+    """True when the title names Codex and the title or description shows the coding agent."""
+    title = yt_strip_channel_brand(title, channel, "Codex")
+    description = yt_strip_channel_brand(description, channel, "Codex")
+    if not yt_phrase_in("Codex", title):
+        return False
+    blob = title + "\n" + (description or "")
+    if any(yt_phrase_in(term, blob) for term in YT_CODEX_STRONG):
+        return True
+    return yt_term_near("Codex", blob, YT_CODEX_NEAR, YT_CODEX_WINDOW)
+
+
+def yt_chatgpt_work_about_agent(title):
+    """True for the product, not for "how ChatGPT works"."""
+    if not yt_phrase_in("ChatGPT Work", title):
+        return False
+    low = title.lower()
+    if re.search(r"(?<![a-z0-9])how\s+chatgpt\s+works(?![a-z0-9])", low):
+        return False
+    if re.search(r"(?<![a-z0-9])how\s+(?:do|does|did)\b.{0,80}?\bchatgpt\s+works?(?![a-z0-9])", low):
+        return False
+    if re.search(r"(?<![a-z0-9])like\s+chatgpt\s+works?(?![a-z0-9])", low):
+        return False
+    return True
+
+
+def yt_grok_build_about_agent(title, description):
+    """True when "Grok Build" is the product, not only "let Grok build this"."""
+    words = yt_tokens(title + "\n" + (description or ""))
+    for i in range(len(words) - 1):
+        if words[i] != "grok" or words[i + 1] != "build":
+            continue
+        prev = words[i - 1] if i else ""
+        nxt = words[i + 2] if i + 2 < len(words) else ""
+        if prev in YT_CAUSE and nxt in YT_OBJECT:
+            continue
+        return True
+    return False
+
+
+def yt_video_matches(name, title, description="", channel=""):
+    """Whether one video counts for this YouTube name. Title, description and channel are the real text."""
+    exclude = YT_EXCLUDE.get(name, ())
+    blob = (title or "") + "\n" + (description or "")
+    if any(word in blob.lower() for word in exclude):
+        return False
+    if name == "Codex":
+        return yt_codex_about_agent(title, description, channel)
+    if name == "ChatGPT Work":
+        return yt_chatgpt_work_about_agent(title or "")
+    if name == "Grok Build":
+        if name.lower() not in (title or "").lower().replace("grokking", ""):
+            return False
+        return yt_grok_build_about_agent(title or "", description or "")
+    text = (title or "").lower().replace("grokking", "")
+    return name.lower() in text and not any(word in text for word in exclude)
+
+
 def yt_search_week(name, end, length, key):
     """Get the top 50 search results for one name and duration in seven complete UTC days."""
     start = datetime.combine(end - timedelta(days=6), datetime.min.time(), timezone.utc)
@@ -607,12 +716,12 @@ def yt_search_week(name, end, length, key):
     items = http_json(f"https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id={','.join(ids)}&key={key}")["items"]
     videos = []
     for item in items:
-        title = item["snippet"]["title"]
-        text = title.lower().replace("grokking", "")
-        if name.lower() in text and not any(word in text for word in exclude):
+        snippet = item["snippet"]
+        title = snippet["title"]
+        if yt_video_matches(name, title, snippet.get("description") or "", snippet.get("channelTitle") or ""):
             count = item["statistics"].get("viewCount")
             if count is not None:
-                videos.append([item["id"], int(count), title, item["snippet"]["channelTitle"]])
+                videos.append([item["id"], int(count), title, snippet["channelTitle"]])
     return videos
 
 
